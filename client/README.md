@@ -35,7 +35,7 @@ A comprehensive platform for students, faculty, and administrators to manage col
 
 1. **Clone the repository**
    ```bash
-   cd Project-Hub/client
+   cd ProjectHUb
    ```
 
 2. **Install dependencies**
@@ -243,3 +243,4 @@ This project is built for educational purposes as part of college project manage
 ---
 
 Built with ❤️ using Next.js, TypeScript, and TailwindCSS
+
