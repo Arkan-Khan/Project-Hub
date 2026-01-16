@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User model for authentication
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile?
+}
+
+// Enum for user roles
+enum Role {
+  student
+  faculty
+  super_admin
+}
+
+// Enum for departments
+enum Department {
+  IT
+  CS
+  ECS
+  ETC
+  BM
+}
+
+// Profile model with role-specific fields
+model Profile {
+  id         String     @id @default(uuid())
+  userId     String     @unique
+  name       String
+  email      String
+  role       Role
+  department Department
+  rollNumber String? // For students only
+  semester   Int? // For students only
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  createdGroups        Group[]                @relation("GroupCreator")
+  groupMemberships     GroupMember[]
+  createdMentorForms   MentorAllocationForm[]
+  submittedPreferences MentorPreference[]
+  mentorAllocations    MentorAllocation[]     @relation("MentorAllocations")
+  availableInForms     AvailableMentor[]
+}
+
+// Group/Team model
+model Group {
+  id         String     @id @default(uuid())
+  groupId    String     @unique // e.g., IT03
+  teamCode   String     @unique // e.g., A7DXQ
+  department Department
+  createdBy  String
+  isFull     Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  creator     Profile            @relation("GroupCreator", fields: [createdBy], references: [id])
+  members     GroupMember[]
+  preferences MentorPreference[]
+  allocations MentorAllocation[]
+}
+
+// Group membership (many-to-many between Profile and Group)
+model GroupMember {
+  id        String   @id @default(uuid())
+  groupId   String
+  profileId String
+  joinedAt  DateTime @default(now())
+
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, profileId])
+}
+
+// Mentor Allocation Form (created by Super Admin)
+model MentorAllocationForm {
+  id         String     @id @default(uuid())
+  department Department
+  isActive   Boolean    @default(true)
+  createdBy  String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  creator          Profile            @relation(fields: [createdBy], references: [id])
+  availableMentors AvailableMentor[]
+  preferences      MentorPreference[]
+  allocations      MentorAllocation[]
+}
+
+// Available mentors for a form (many-to-many)
+model AvailableMentor {
+  id       String @id @default(uuid())
+  formId   String
+  mentorId String
+
+  form   MentorAllocationForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  mentor Profile              @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, mentorId])
+}
+
+// Mentor preferences submitted by group leader
+model MentorPreference {
+  id            String   @id @default(uuid())
+  groupId       String
+  formId        String
+  mentorChoice1 String // 1st preference mentor id
+  mentorChoice2 String // 2nd preference mentor id
+  mentorChoice3 String // 3rd preference mentor id
+  submittedBy   String
+  submittedAt   DateTime @default(now())
+
+  group     Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  form      MentorAllocationForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  submitter Profile              @relation(fields: [submittedBy], references: [id])
+
+  @@unique([groupId, formId])
+}
+
+// Mentor allocation status
+model MentorAllocation {
+  id             String           @id @default(uuid())
+  groupId        String
+  mentorId       String
+  formId         String
+  status         AllocationStatus @default(pending)
+  preferenceRank Int // 1, 2, or 3
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  group  Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  mentor Profile              @relation("MentorAllocations", fields: [mentorId], references: [id])
+  form   MentorAllocationForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, mentorId, formId])
+}
+
+enum AllocationStatus {
+  pending
+  accepted
+  rejected
+}
+
+// Counter for group serial numbers per department
+model GroupCounter {
+  id         String     @id @default(uuid())
+  department Department @unique
+  counter    Int        @default(0)
+}

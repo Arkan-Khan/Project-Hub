@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { loginUser } from "@/lib/storage";
+import { authApi } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,10 +24,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      loginUser(email, password);
-      refreshAuth();
+      const response = await authApi.login({ email, password });
+      await refreshAuth();
+      
       showToast("Login successful!", "success");
-      router.push("/onboarding");
+      
+      // Redirect based on profile existence
+      if (response.profile) {
+        router.push("/dashboard");
+      } else {
+        router.push("/onboarding");
+      }
     } catch (error: any) {
       showToast(error.message || "Invalid credentials", "error");
     } finally {

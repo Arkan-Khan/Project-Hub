@@ -27,23 +27,40 @@ A comprehensive platform for students, faculty, and administrators to manage col
 ## 🛠️ Tech Stack
 
 - **Frontend**: Next.js 15 (App Router) + TypeScript
+- **Backend**: NestJS with PostgreSQL (Supabase)
 - **UI**: TailwindCSS with custom Shadcn/UI components
-- **Storage**: localStorage (prototype - ready for Supabase migration)
+- **Database**: PostgreSQL via Supabase with Prisma ORM
+- **Authentication**: JWT-based auth with email/password
 - **Icons**: Lucide React
 
 ## 📦 Installation
 
 1. **Clone the repository**
    ```bash
-   cd ProjectHUb
+   cd ProjectHub
    ```
 
-2. **Install dependencies**
+2. **Set up environment variables**
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   
+   Edit `.env.local` and set:
+   ```
+   NEXT_PUBLIC_API_URL=http://localhost:3001/api
+   ```
+
+3. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. **Run development server**
+4. **Ensure backend is running**
+   - The client requires the NestJS backend to be running
+   - See `/server/README.md` for backend setup instructions
+   - Backend should be running on `http://localhost:3001`
+
+5. **Run development server**
    ```bash
    npm run dev
    ```

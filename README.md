@@ -1,6 +1,6 @@
 # ProjectHub - College Project Management System
 
-A comprehensive platform for students, faculty, and administrators to manage college projects (mini, minor, and major projects) with mentor allocation functionality.
+A comprehensive full-stack platform for students, faculty, and administrators to manage college projects (mini, minor, and major projects) with mentor allocation functionality.
 
 ## 🚀 Features
 
@@ -26,32 +26,65 @@ A comprehensive platform for students, faculty, and administrators to manage col
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 15 (App Router) + TypeScript
-- **UI**: TailwindCSS with custom Shadcn/UI components
-- **Storage**: localStorage (prototype - ready for Supabase migration)
+### Frontend
+- **Framework**: Next.js 15 (App Router) with TypeScript
+- **Styling**: TailwindCSS with custom Shadcn/UI components
 - **Icons**: Lucide React
+- **State Management**: React Context API
 
-## 📦 Installation
+### Backend
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL (via Supabase)
+- **ORM**: Prisma
+- **Authentication**: JWT with bcrypt password hashing
+- **API**: RESTful with validation pipes
+
+## 📚 Documentation
+
+- **[Complete Setup Guide](SETUP_GUIDE.md)** - Step-by-step instructions for setting up both backend and frontend
+- **[API Documentation](server/API_DOCUMENTATION.md)** - Complete API reference with examples
+- **[API Testing Guide](server/API_TESTING.md)** - How to test endpoints with curl
+- **[Supabase Setup](server/SUPABASE_SETUP.md)** - Database configuration guide
+- **[Backend README](server/README.md)** - NestJS backend details
+- **[Frontend README](client/README.md)** - Next.js frontend details
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js v18+
+- Supabase account (free tier works)
+- npm or yarn
+
+### Installation
 
 1. **Clone the repository**
    ```bash
-   cd Project-Hub/client
+   git clone <your-repo-url>
+   cd Project-Hub
    ```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+2. **Follow the [Complete Setup Guide](SETUP_GUIDE.md)** for detailed instructions
 
-3. **Run development server**
-   ```bash
-   npm run dev
-   ```
+**OR** Quick start:
 
-4. **Open browser**
-   ```
-   http://localhost:3000
-   ```
+```bash
+# Backend
+cd server
+npm install
+cp .env.example .env  # Add your DATABASE_URL
+npx prisma db push
+npm run start:dev
+
+# Frontend (new terminal)
+cd client
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+
+3. **Open browser**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:3001/api
 
 ## 🎨 Design System
 
@@ -164,17 +197,6 @@ Currently using localStorage for rapid prototyping. Data structure:
 - `projecthub_users` - User accounts
 - `projecthub_profiles` - User profiles with role data
 - `projecthub_groups` - Project groups
-- `projecthub_mentor_forms` - Active allocation forms
-- `projecthub_mentor_preferences` - Student submissions
-- `projecthub_mentor_allocations` - Allocation status
-
-### Ready for Supabase Migration
-
-The `lib/storage.ts` file is designed as an abstraction layer. To migrate to Supabase:
-1. Replace localStorage functions with Supabase queries
-2. Keep the same function signatures
-3. No changes needed in components
-
 ## 🔄 Group ID Generation
 
 Groups get unique IDs based on department:
@@ -204,12 +226,23 @@ Groups get unique IDs based on department:
    - Required for Super Admin only
    - Case-sensitive
 
-## 🚧 Future Enhancements (Out of Scope)
+## 📊 Project Status
 
-- Supabase integration for multi-user real-time features
-- Project progress tracking
-- Document uploads
-- Meeting scheduling
+✅ **Backend Complete** - 40+ API endpoints  
+✅ **Frontend Complete** - Full integration with backend  
+✅ **Database Complete** - PostgreSQL with Prisma ORM  
+✅ **Documentation Complete** - Comprehensive guides  
+✅ **Production Ready** - Fully functional system
+
+See [INTEGRATION_COMPLETE.md](INTEGRATION_COMPLETE.md) for detailed status.
+
+## 🤝 Contributing
+
+This is a college project. Feel free to fork and adapt for your institution!
+
+## 📄 License
+
+MIT License - Free for educational use
 - Evaluation forms
 - Email notifications
 

@@ -68,3 +68,117 @@ export const ACCESS_CODES: Record<Department, string> = {
   BM: "BMADMIN2025",
 };
 
+// ============================================
+// Topic Approval Types
+// ============================================
+
+export type TopicStatus =
+  | "submitted"
+  | "under_review"
+  | "approved"
+  | "rejected"
+  | "revision_requested";
+
+export interface ProjectTopic {
+  id: string;
+  groupId: string;
+  title: string;
+  description: string;
+  status: TopicStatus;
+  submittedBy: string; // profile id
+  submittedAt: string;
+  reviewedBy?: string; // mentor profile id
+  reviewedAt?: string;
+}
+
+export interface TopicMessage {
+  id: string;
+  topicId: string; // can be "general" for general discussion
+  groupId: string;
+  authorId: string;
+  authorName: string;
+  authorRole: "student" | "faculty";
+  content: string;
+  links?: string[]; // optional URLs
+  createdAt: string;
+}
+
+// ============================================
+// Review Types
+// ============================================
+
+export type ReviewType = "review_1" | "review_2" | "final_review";
+
+export type ReviewStatus =
+  | "not_started"
+  | "in_progress"
+  | "submitted"
+  | "feedback_given"
+  | "completed";
+
+export interface ReviewRollout {
+  id: string;
+  department: Department;
+  reviewType: ReviewType;
+  isActive: boolean;
+  createdBy: string; // super admin profile id
+  createdAt: string;
+}
+
+export interface ReviewSession {
+  id: string;
+  groupId: string;
+  reviewType: ReviewType;
+  status: ReviewStatus;
+  progressPercentage: number; // 0-100
+  progressDescription: string;
+  submittedBy: string; // student profile id
+  submittedAt: string;
+  mentorFeedback?: string;
+  feedbackGivenBy?: string; // mentor profile id
+  feedbackGivenAt?: string;
+}
+
+export interface ReviewMessage {
+  id: string;
+  sessionId: string;
+  groupId: string;
+  authorId: string;
+  authorName: string;
+  authorRole: "student" | "faculty";
+  content: string;
+  links?: string[];
+  createdAt: string;
+}
+
+// ============================================
+// Team Progress (Aggregated View)
+// ============================================
+
+export interface TeamProgress {
+  groupId: string;
+  groupDisplayId: string; // e.g., "IT03"
+  mentorId: string;
+  mentorName: string;
+  topicApproval: {
+    status: "pending" | "approved" | "rejected";
+    approvedTopic?: string;
+    totalTopicsSubmitted: number;
+  };
+  review1: {
+    status: ReviewStatus;
+    progressPercentage?: number;
+    isRolledOut: boolean;
+  };
+  review2: {
+    status: ReviewStatus;
+    progressPercentage?: number;
+    isRolledOut: boolean;
+  };
+  finalReview: {
+    status: ReviewStatus;
+    progressPercentage?: number;
+    isRolledOut: boolean;
+  };
+}
+

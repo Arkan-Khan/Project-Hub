@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
-import { createUser } from "@/lib/storage";
+import { authApi } from "@/lib/api";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -34,9 +34,9 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      createUser(email, password);
+      await authApi.signup({ email, password });
       showToast("Account created successfully!", "success");
-      router.push("/auth/login");
+      router.push("/onboarding");
     } catch (error: any) {
       showToast(error.message || "Failed to create account", "error");
     } finally {
