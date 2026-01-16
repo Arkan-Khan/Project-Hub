@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Plus, UserPlus, FileText } from "lucide-react";
+import { Users, Plus, UserPlus, FileText, ClipboardList } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   mentorPreferenceApi,
   mentorAllocationApi,
   GroupWithMembers,
+  getTopicsByGroup,
 } from "@/lib/api";
 import { Group, Profile } from "@/types";
 
@@ -35,6 +36,7 @@ export default function StudentDashboard() {
     mentorName: string;
     status: string;
   } | null>(null);
+  const [hasApprovedTopic, setHasApprovedTopic] = useState(false);
 
   useEffect(() => {
     if (!user || !profile) {
@@ -76,6 +78,10 @@ export default function StudentDashboard() {
             mentorName: status.mentorName,
             status: 'Accepted',
           });
+        
+        // Check if topic is approved
+        const topics = getTopicsByGroup(userGroup.id);
+        setHasApprovedTopic(topics.some((t) => t.status === "approved"));
         } else if (status.status === 'pending') {
           setMentorStatus({
             mentorName: '',
@@ -313,6 +319,49 @@ export default function StudentDashboard() {
                       </p>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Project Progress Section - Shows after mentor is allocated */}
+            {mentorStatus?.status === "Accepted" && (
+              <Card className="border-primary/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5" />
+                    Project Progress
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                      Your mentor has been assigned! Now you can start working on your project.
+                      Submit your topic ideas and track your progress through reviews.
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={`p-3 rounded-md border ${hasApprovedTopic ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                        <p className="text-xs text-gray-600">Topic Approval</p>
+                        <p className={`font-medium ${hasApprovedTopic ? 'text-green-700' : 'text-amber-700'}`}>
+                          {hasApprovedTopic ? '✓ Approved' : 'Pending'}
+                        </p>
+                      </div>
+                      <div className="p-3 rounded-md border bg-gray-50 border-gray-200">
+                        <p className="text-xs text-gray-600">Reviews</p>
+                        <p className="font-medium text-gray-700">
+                          {hasApprovedTopic ? 'In Progress' : 'After Topic Approval'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={() => router.push("/dashboard/student/project-progress")}
+                      className="w-full"
+                    >
+                      <ClipboardList className="h-4 w-4 mr-2" />
+                      Open Project Progress
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
