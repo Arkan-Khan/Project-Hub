@@ -8,12 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
-import {
-  getAllocationsForMentor,
-  getProfileById,
-  acceptMentorAllocation,
-  rejectMentorAllocation,
-} from "@/lib/storage";
+import { mentorAllocationApi } from "@/lib/api";
 import { MentorAllocation, Profile, Group } from "@/types";
 
 interface AllocationWithDetails extends MentorAllocation {
@@ -43,44 +38,32 @@ export default function FacultyDashboard() {
     loadAllocations();
   }, [user, profile, router]);
 
-  const loadAllocations = () => {
+  const loadAllocations = async () => {
     if (!profile) return;
 
-    const mentorAllocations = getAllocationsForMentor(profile.id);
+    try {
+      const mentorAllocations = await mentorAllocationApi.getForMentor();
 
-    // Load group and member details
-    const allocationsWithDetails = mentorAllocations.map((allocation) => {
-      const groupData = JSON.parse(
-        localStorage.getItem("projecthub_groups") || "[]"
-      ).find((g: Group) => g.id === allocation.groupId);
+      // Sort: pending first, then by preference rank
+      mentorAllocations.sort((a, b) => {
+        if (a.status === "pending" && b.status !== "pending") return -1;
+        if (a.status !== "pending" && b.status === "pending") return 1;
+        return a.preferenceRank - b.preferenceRank;
+      });
 
-      const members = groupData?.members
-        .map((id: string) => getProfileById(id))
-        .filter(Boolean);
-
-      return {
-        ...allocation,
-        group: groupData,
-        members,
-      };
-    });
-
-    // Sort: pending first, then by preference rank
-    allocationsWithDetails.sort((a, b) => {
-      if (a.status === "pending" && b.status !== "pending") return -1;
-      if (a.status !== "pending" && b.status === "pending") return 1;
-      return a.preferenceRank - b.preferenceRank;
-    });
-
-    setAllocations(allocationsWithDetails);
+      setAllocations(mentorAllocations);
+    } catch (error) {
+      console.error("Error loading allocations:", error);
+      showToast("Failed to load allocations", "error");
+    }
   };
 
   const handleAccept = async (allocationId: string) => {
     setLoading(true);
     try {
-      acceptMentorAllocation(allocationId);
+      await mentorAllocationApi.accept(allocationId);
       showToast("Team accepted successfully!", "success");
-      loadAllocations();
+      await loadAllocations();
     } catch (error: any) {
       showToast(error.message || "Failed to accept team", "error");
     } finally {
@@ -91,9 +74,9 @@ export default function FacultyDashboard() {
   const handleReject = async (allocationId: string) => {
     setLoading(true);
     try {
-      rejectMentorAllocation(allocationId);
+      await mentorAllocationApi.reject(allocationId);
       showToast("Team rejected", "info");
-      loadAllocations();
+      await loadAllocations();
     } catch (error: any) {
       showToast(error.message || "Failed to reject team", "error");
     } finally {

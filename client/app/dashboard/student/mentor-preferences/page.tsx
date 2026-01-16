@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import {
-  getGroupByMemberId,
-  getActiveMentorForm,
-  submitMentorPreferences,
-  getProfileById,
-  getMentorPreferenceByGroup,
-} from "@/lib/storage";
+  groupApi,
+  mentorFormApi,
+  mentorPreferenceApi,
+  profileApi,
+  GroupWithMembers,
+} from "@/lib/api";
 import { Profile } from "@/types";
 
 export default function MentorPreferencesPage() {
@@ -25,7 +25,8 @@ export default function MentorPreferencesPage() {
   const [availableMentors, setAvailableMentors] = useState<Profile[]>([]);
   const [selectedMentors, setSelectedMentors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [groupId, setGroupId] = useState<string>("");
+  const [formId, setFormId] = useState<string>("");
+  const [group, setGroup] = useState<GroupWithMembers | null>(null);
 
   useEffect(() => {
     if (!user || !profile) {
@@ -41,47 +42,51 @@ export default function MentorPreferencesPage() {
     loadMentorForm();
   }, [user, profile, router]);
 
-  const loadMentorForm = () => {
+  const loadMentorForm = async () => {
     if (!profile) return;
 
-    const group = getGroupByMemberId(profile.id);
-    if (!group) {
-      showToast("You are not part of any group", "error");
+    try {
+      const userGroup = await groupApi.getMyGroup();
+      if (!userGroup) {
+        showToast("You are not part of any group", "error");
+        router.push("/dashboard/student");
+        return;
+      }
+
+      setGroup(userGroup);
+
+      // Check if user is leader
+      if (userGroup.createdBy !== profile.id) {
+        showToast("Only the group leader can submit preferences", "error");
+        router.push("/dashboard/student");
+        return;
+      }
+
+      // Check if already submitted
+      const prefResponse = await mentorPreferenceApi.hasSubmitted();
+      if (prefResponse.hasSubmitted) {
+        showToast("Preferences already submitted", "info");
+        router.push("/dashboard/student");
+        return;
+      }
+
+      // Get active form
+      const activeForm = await mentorFormApi.getActive();
+      if (!activeForm) {
+        showToast("No active mentor allocation form", "error");
+        router.push("/dashboard/student");
+        return;
+      }
+
+      setFormId(activeForm.id);
+
+      // Load available mentors
+      const mentors = activeForm.availableMentors.map(am => am.mentor);
+      setAvailableMentors(mentors);
+    } catch (error: any) {
+      showToast(error.message || "Failed to load mentor form", "error");
       router.push("/dashboard/student");
-      return;
     }
-
-    setGroupId(group.id);
-
-    // Check if user is leader
-    if (group.createdBy !== profile.id) {
-      showToast("Only the group leader can submit preferences", "error");
-      router.push("/dashboard/student");
-      return;
-    }
-
-    // Check if already submitted
-    const existingPreferences = getMentorPreferenceByGroup(group.id);
-    if (existingPreferences) {
-      showToast("Preferences already submitted", "info");
-      router.push("/dashboard/student");
-      return;
-    }
-
-    // Get active form
-    const activeForm = getActiveMentorForm(profile.department);
-    if (!activeForm) {
-      showToast("No active mentor allocation form", "error");
-      router.push("/dashboard/student");
-      return;
-    }
-
-    // Load available mentors
-    const mentors = activeForm.availableMentors
-      .map((id) => getProfileById(id))
-      .filter(Boolean) as Profile[];
-
-    setAvailableMentors(mentors);
   };
 
   const handleSelectMentor = (mentorId: string) => {
@@ -102,16 +107,14 @@ export default function MentorPreferencesPage() {
       return;
     }
 
-    if (!profile || !groupId) return;
+    if (!profile || !formId) return;
 
     setLoading(true);
     try {
-      submitMentorPreferences(
-        groupId,
-        getActiveMentorForm(profile.department)!.id,
-        selectedMentors as [string, string, string],
-        profile.id
-      );
+      await mentorPreferenceApi.submit({
+        formId,
+        mentorChoices: selectedMentors as [string, string, string],
+      });
       showToast("Preferences submitted successfully!", "success");
       router.push("/dashboard/student");
     } catch (error: any) {

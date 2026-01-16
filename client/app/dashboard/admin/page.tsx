@@ -8,13 +8,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
-import {
-  getActiveMentorForm,
-  getFacultyByDepartment,
-  createMentorAllocationForm,
-  getGroupsByDepartment,
-  getProfileById,
-} from "@/lib/storage";
+import { 
+  mentorFormApi, 
+  profileApi, 
+  groupApi 
+} from "@/lib/api";
 import { MentorAllocationForm, Profile } from "@/types";
 
 export default function AdminDashboard() {
@@ -42,43 +40,29 @@ export default function AdminDashboard() {
     loadData();
   }, [user, profile, router]);
 
-  const loadData = () => {
+  const loadData = async () => {
     if (!profile) return;
 
-    const form = getActiveMentorForm(profile.department);
-    setActiveForm(form);
+    try {
+      // Load active form
+      const form = await mentorFormApi.getActiveByDepartment(profile.department);
+      setActiveForm(form);
 
-    const faculty = getFacultyByDepartment(profile.department);
-    setFacultyList(faculty);
+      // Load faculty list
+      const faculty = await profileApi.getFacultyByDepartment(profile.department);
+      setFacultyList(faculty);
 
-    if (form) {
-      setSelectedMentors(form.availableMentors);
+      if (form) {
+        setSelectedMentors(form.availableMentors.map(m => m.mentorId));
+      }
+
+      // Load groups with details
+      const deptGroups = await groupApi.getWithDetails(profile.department);
+      setGroups(deptGroups);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      showToast("Failed to load dashboard data", "error");
     }
-
-    const deptGroups = getGroupsByDepartment(profile.department);
-    const groupsWithDetails = deptGroups.map((group) => {
-      const leader = getProfileById(group.createdBy);
-      const preferences = JSON.parse(
-        localStorage.getItem("projecthub_mentor_preferences") || "[]"
-      ).find((p: any) => p.groupId === group.id);
-
-      const allocations = JSON.parse(
-        localStorage.getItem("projecthub_mentor_allocations") || "[]"
-      ).filter((a: any) => a.groupId === group.id);
-
-      const acceptedAllocation = allocations.find((a: any) => a.status === "accepted");
-
-      return {
-        ...group,
-        leaderName: leader?.name,
-        hasSubmittedPreferences: !!preferences,
-        mentorAssigned: acceptedAllocation
-          ? getProfileById(acceptedAllocation.mentorId)?.name
-          : null,
-      };
-    });
-
-    setGroups(groupsWithDetails);
   };
 
   const handleToggleMentor = (mentorId: string) => {
@@ -99,13 +83,9 @@ export default function AdminDashboard() {
 
     setLoading(true);
     try {
-      createMentorAllocationForm(
-        profile.department,
-        profile.id,
-        selectedMentors
-      );
+      await mentorFormApi.create({ availableMentorIds: selectedMentors });
       showToast("Mentor Allocation Form rolled out successfully!", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to roll out form", "error");
     } finally {

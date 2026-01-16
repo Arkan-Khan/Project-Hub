@@ -2,20 +2,21 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, Profile } from "@/types";
-import { getCurrentUser, getProfileByUserId } from "@/lib/storage";
+import { authApi } from "@/lib/api";
+import { getToken } from "@/lib/api-client";
 
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  refreshAuth: () => void;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
-  refreshAuth: () => {},
+  refreshAuth: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -25,18 +26,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshAuth = () => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-
-    if (currentUser) {
-      const userProfile = getProfileByUserId(currentUser.id);
-      setProfile(userProfile);
-    } else {
+  const refreshAuth = async () => {
+    const token = getToken();
+    
+    if (!token) {
+      setUser(null);
       setProfile(null);
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    try {
+      const data = await authApi.getMe();
+      setUser(data.user);
+      setProfile(data.profile || null);
+    } catch (error) {
+      console.error('Auth refresh failed:', error);
+      setUser(null);
+      setProfile(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

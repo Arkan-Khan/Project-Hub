@@ -5,7 +5,7 @@ import { GraduationCap, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
-import { logoutUser } from "@/lib/storage";
+import { authApi } from "@/lib/api";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { showToast } = useToast();
 
   const handleLogout = () => {
-    logoutUser();
+    authApi.logout();
     refreshAuth();
     showToast("Logged out successfully", "success");
     router.push("/");

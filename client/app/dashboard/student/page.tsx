@@ -10,15 +10,13 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import {
-  createGroup,
-  getGroupByMemberId,
-  getGroupByTeamCode,
-  joinGroup,
-  getProfileById,
-  getActiveMentorForm,
-  getMentorPreferenceByGroup,
-  getAllocationsForGroup,
-} from "@/lib/storage";
+  groupApi,
+  profileApi,
+  mentorFormApi,
+  mentorPreferenceApi,
+  mentorAllocationApi,
+  GroupWithMembers,
+} from "@/lib/api";
 import { Group, Profile } from "@/types";
 
 export default function StudentDashboard() {
@@ -26,7 +24,7 @@ export default function StudentDashboard() {
   const { user, profile } = useAuth();
   const { showToast } = useToast();
 
-  const [group, setGroup] = useState<Group | null>(null);
+  const [group, setGroup] = useState<GroupWithMembers | null>(null);
   const [members, setMembers] = useState<Profile[]>([]);
   const [teamCodeInput, setTeamCodeInput] = useState("");
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -52,41 +50,41 @@ export default function StudentDashboard() {
     loadGroupData();
   }, [user, profile, router]);
 
-  const loadGroupData = () => {
+  const loadGroupData = async () => {
     if (!profile) return;
 
-    const userGroup = getGroupByMemberId(profile.id);
-    setGroup(userGroup);
+    try {
+      const userGroup = await groupApi.getMyGroup();
+      setGroup(userGroup);
 
-    if (userGroup) {
-      const groupMembers = userGroup.members
-        .map((id) => getProfileById(id))
-        .filter(Boolean) as Profile[];
-      setMembers(groupMembers);
+      if (userGroup) {
+        const groupMembers = userGroup.members.map(m => m.profile);
+        setMembers(groupMembers);
 
-      // Check if mentor form is active
-      const activeForm = getActiveMentorForm(profile.department);
-      setMentorFormActive(!!activeForm);
+        // Check if mentor form is active
+        const activeForm = await mentorFormApi.getActive();
+        setMentorFormActive(!!activeForm);
 
-      // Check if preferences submitted
-      const preferences = getMentorPreferenceByGroup(userGroup.id);
-      setHasSubmittedPreferences(!!preferences);
+        // Check if preferences submitted
+        const prefResponse = await mentorPreferenceApi.hasSubmitted();
+        setHasSubmittedPreferences(prefResponse.hasSubmitted);
 
-      // Check mentor allocation status
-      const allocations = getAllocationsForGroup(userGroup.id);
-      const acceptedAllocation = allocations.find((a) => a.status === "accepted");
-      if (acceptedAllocation) {
-        const mentor = getProfileById(acceptedAllocation.mentorId);
-        setMentorStatus({
-          mentorName: mentor?.name || "Unknown",
-          status: "Accepted",
-        });
-      } else if (allocations.length > 0) {
-        setMentorStatus({
-          mentorName: "",
-          status: "Pending",
-        });
+        // Check mentor allocation status
+        const status = await mentorAllocationApi.getStatus();
+        if (status.status === 'accepted' && status.mentorName) {
+          setMentorStatus({
+            mentorName: status.mentorName,
+            status: 'Accepted',
+          });
+        } else if (status.status === 'pending') {
+          setMentorStatus({
+            mentorName: '',
+            status: 'Pending',
+          });
+        }
       }
+    } catch (error: any) {
+      console.error('Failed to load group data:', error);
     }
   };
 
@@ -95,11 +93,11 @@ export default function StudentDashboard() {
 
     setLoading(true);
     try {
-      const newGroup = createGroup(profile.id, profile.department);
+      const newGroup = await groupApi.create();
       setGroup(newGroup);
       setMembers([profile]);
       showToast("Group created successfully!", "success");
-      loadGroupData();
+      await loadGroupData();
     } catch (error: any) {
       showToast(error.message || "Failed to create group", "error");
     } finally {
@@ -112,23 +110,11 @@ export default function StudentDashboard() {
 
     setLoading(true);
     try {
-      const targetGroup = getGroupByTeamCode(teamCodeInput);
-
-      if (!targetGroup) {
-        showToast("Group not found", "error");
-        return;
-      }
-
-      if (targetGroup.department !== profile.department) {
-        showToast("Can only join groups from your department", "error");
-        return;
-      }
-
-      joinGroup(teamCodeInput, profile.id);
+      await groupApi.join({ teamCode: teamCodeInput });
       showToast("Joined group successfully!", "success");
       setShowJoinForm(false);
       setTeamCodeInput("");
-      loadGroupData();
+      await loadGroupData();
     } catch (error: any) {
       showToast(error.message || "Failed to join group", "error");
     } finally {

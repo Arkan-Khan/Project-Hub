@@ -9,13 +9,13 @@ import { Select } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { createProfile, getProfileByUserId } from "@/lib/storage";
+import { profileApi } from "@/lib/api";
 import { Role, Department, ACCESS_CODES } from "@/types";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { user, refreshAuth } = useAuth();
+  const { user, profile, refreshAuth } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
@@ -32,11 +32,10 @@ export default function OnboardingPage() {
     }
 
     // Check if profile already exists
-    const existingProfile = getProfileByUserId(user.id);
-    if (existingProfile) {
+    if (profile) {
       router.push("/dashboard");
     }
-  }, [user, router]);
+  }, [user, profile, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +58,6 @@ export default function OnboardingPage() {
 
     try {
       const profileData: any = {
-        userId: user.id,
         name,
         email: user.email,
         role,
@@ -71,8 +69,12 @@ export default function OnboardingPage() {
         profileData.semester = parseInt(semester);
       }
 
-      createProfile(profileData);
-      refreshAuth();
+      if (role === "super_admin") {
+        profileData.accessCode = accessCode;
+      }
+
+      await profileApi.create(profileData);
+      await refreshAuth();
       showToast("Profile created successfully!", "success");
       router.push("/dashboard");
     } catch (error: any) {
