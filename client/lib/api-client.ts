@@ -3,39 +3,40 @@
  * Base URL configuration and axios instance
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 // Token management
-const TOKEN_KEY = 'projecthub_token';
+const TOKEN_KEY = "projecthub_token";
 
 export const getToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 };
 
 export const setToken = (token: string): void => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   localStorage.setItem(TOKEN_KEY, token);
 };
 
 export const removeToken = (): void => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
 };
 
 // Fetch wrapper with auth
 async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
-  
+
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -53,19 +54,25 @@ async function apiFetch<T>(
     throw new Error(error.message || `HTTP ${response.status}`);
   }
 
-  return response.json();
+  // Handle empty responses (204 No Content or empty body)
+  const text = await response.text();
+  if (!text) {
+    return null as T;
+  }
+
+  return JSON.parse(text);
 }
 
 export const api = {
   // GET request
   get: <T>(endpoint: string): Promise<T> => {
-    return apiFetch<T>(endpoint, { method: 'GET' });
+    return apiFetch<T>(endpoint, { method: "GET" });
   },
 
   // POST request
   post: <T>(endpoint: string, data?: any): Promise<T> => {
     return apiFetch<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: data ? JSON.stringify(data) : undefined,
     });
   },
@@ -73,13 +80,13 @@ export const api = {
   // PATCH request
   patch: <T>(endpoint: string, data?: any): Promise<T> => {
     return apiFetch<T>(endpoint, {
-      method: 'PATCH',
+      method: "PATCH",
       body: data ? JSON.stringify(data) : undefined,
     });
   },
 
   // DELETE request
   delete: <T>(endpoint: string): Promise<T> => {
-    return apiFetch<T>(endpoint, { method: 'DELETE' });
+    return apiFetch<T>(endpoint, { method: "DELETE" });
   },
 };

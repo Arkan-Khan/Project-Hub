@@ -1,12 +1,11 @@
-import { Request } from 'express';
-
+// Augment Express namespace to include user property with userId and email
 declare global {
   namespace Express {
-    interface Request {
-      user?: {
-        userId: string;
-        email: string;
-      };
+    interface User {
+      userId: string;
+      email: string;
     }
   }
 }
+
+export {};
