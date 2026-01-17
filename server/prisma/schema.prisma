@@ -77,6 +77,7 @@ model Group {
   members     GroupMember[]
   preferences MentorPreference[]
   allocations MentorAllocation[]
+  topics      ProjectTopic[]
 }
 
 // Group membership (many-to-many between Profile and Group)
@@ -166,4 +167,111 @@ model GroupCounter {
   id         String     @id @default(uuid())
   department Department @unique
   counter    Int        @default(0)
+}
+
+// ============================================
+// Project Topic Approval Models
+// ============================================
+
+enum TopicStatus {
+  submitted
+  under_review
+  approved
+  rejected
+  revision_requested
+}
+
+model ProjectTopic {
+  id          String      @id @default(uuid())
+  groupId     String
+  title       String
+  description String      @db.Text
+  status      TopicStatus @default(submitted)
+  submittedBy String
+  submittedAt DateTime    @default(now())
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  group    Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  messages TopicMessage[]
+}
+
+model TopicMessage {
+  id         String   @id @default(uuid())
+  topicId    String // "general" for general discussion
+  groupId    String
+  authorId   String
+  authorName String
+  authorRole String // "student" or "faculty"
+  content    String   @db.Text
+  links      String[] // Array of URLs
+  createdAt  DateTime @default(now())
+
+  topic ProjectTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Review System Models
+// ============================================
+
+enum ReviewType {
+  review_1
+  review_2
+  final_review
+}
+
+enum ReviewStatus {
+  not_started
+  in_progress
+  submitted
+  feedback_given
+  completed
+}
+
+model ReviewRollout {
+  id         String     @id @default(uuid())
+  department Department
+  reviewType ReviewType
+  isActive   Boolean    @default(true)
+  createdBy  String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([department, reviewType])
+}
+
+model ReviewSession {
+  id                  String       @id @default(uuid())
+  groupId             String
+  reviewType          ReviewType
+  status              ReviewStatus @default(not_started)
+  progressPercentage  Int          @default(0) // 0-100
+  progressDescription String       @db.Text
+  submittedBy         String
+  submittedAt         DateTime     @default(now())
+  mentorFeedback      String?      @db.Text
+  feedbackGivenBy     String?
+  feedbackGivenAt     DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  messages ReviewMessage[]
+
+  @@unique([groupId, reviewType])
+}
+
+model ReviewMessage {
+  id         String   @id @default(uuid())
+  sessionId  String
+  groupId    String
+  authorId   String
+  authorName String
+  authorRole String // "student" or "faculty"
+  content    String   @db.Text
+  links      String[] // Array of URLs
+  createdAt  DateTime @default(now())
+
+  session ReviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }

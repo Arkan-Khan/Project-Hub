@@ -11,25 +11,11 @@ import { ReviewSection } from "@/components/review-section";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import {
-  getGroupByMemberId,
-  getAllocationsForGroup,
-  getProfileById,
-  getTopicsByGroup,
-  getTopicMessagesByGroup,
-  createTopic,
-  approveTopic,
-  rejectTopic,
-  requestTopicRevision,
-  addTopicMessage,
-  getReviewRollout,
-  getReviewSession,
-  getReviewMessagesByGroupAndType,
-  createReviewSession,
-  updateReviewSession,
-  addReviewFeedback,
-  markReviewComplete,
-  addReviewMessage,
-} from "@/lib/storage";
+  groupApi,
+  mentorAllocationApi,
+  projectTopicsApi,
+  reviewsApi,
+} from "@/lib/api";
 import {
   Group,
   Profile,
@@ -72,58 +58,70 @@ export default function ProjectProgressPage() {
     ReviewMessage[]
   >([]);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     if (!profile) return;
 
-    const userGroup = getGroupByMemberId(profile.id);
-    if (!userGroup) {
-      router.push("/dashboard/student");
-      return;
+    try {
+      // Get group
+      const userGroup = await groupApi.getMyGroup();
+      if (!userGroup) {
+        router.push("/dashboard/student");
+        return;
+      }
+      setGroup(userGroup);
+
+      // Check for accepted mentor
+      const statusData = await mentorAllocationApi.getStatus();
+      if (statusData.status !== 'accepted' || !statusData.mentorId) {
+        router.push("/dashboard/student");
+        return;
+      }
+
+      // Get mentor profile from the group's allocation data
+      const allocations = await mentorAllocationApi.getForGroup();
+      const acceptedAllocation = allocations.find((a) => a.status === "accepted");
+      if (acceptedAllocation) {
+        setMentor(acceptedAllocation.mentor);
+      }
+
+      // Load topics and messages
+      const groupTopics = await projectTopicsApi.getMyGroupTopics();
+      setTopics(groupTopics);
+
+      const messages = await projectTopicsApi.getMyGroupMessages();
+      setTopicMessages(messages);
+
+      // Load review rollouts
+      const review1Rollout = await reviewsApi.getRollout("review_1");
+      const review2Rollout = await reviewsApi.getRollout("review_2");
+      const finalReviewRollout = await reviewsApi.getRollout("final_review");
+
+      setReview1RolledOut(!!review1Rollout?.isActive);
+      setReview2RolledOut(!!review2Rollout?.isActive);
+      setFinalReviewRolledOut(!!finalReviewRollout?.isActive);
+
+      // Load review sessions
+      const r1Session = await reviewsApi.getMySession("review_1");
+      const r2Session = await reviewsApi.getMySession("review_2");
+      const frSession = await reviewsApi.getMySession("final_review");
+
+      setReview1Session(r1Session);
+      setReview2Session(r2Session);
+      setFinalReviewSession(frSession);
+
+      // Load review messages
+      const r1Messages = await reviewsApi.getMyMessages("review_1");
+      const r2Messages = await reviewsApi.getMyMessages("review_2");
+      const frMessages = await reviewsApi.getMyMessages("final_review");
+
+      setReview1Messages(r1Messages);
+      setReview2Messages(r2Messages);
+      setFinalReviewMessages(frMessages);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      showToast("Failed to load data", "error");
     }
-    setGroup(userGroup);
-
-    // Check for accepted mentor
-    const allocations = getAllocationsForGroup(userGroup.id);
-    const acceptedAllocation = allocations.find((a) => a.status === "accepted");
-    if (!acceptedAllocation) {
-      router.push("/dashboard/student");
-      return;
-    }
-
-    const mentorProfile = getProfileById(acceptedAllocation.mentorId);
-    setMentor(mentorProfile);
-
-    // Load topics
-    setTopics(getTopicsByGroup(userGroup.id));
-    setTopicMessages(getTopicMessagesByGroup(userGroup.id));
-
-    // Load review rollouts
-    setReview1RolledOut(
-      !!getReviewRollout(userGroup.department, "review_1")
-    );
-    setReview2RolledOut(
-      !!getReviewRollout(userGroup.department, "review_2")
-    );
-    setFinalReviewRolledOut(
-      !!getReviewRollout(userGroup.department, "final_review")
-    );
-
-    // Load review sessions
-    setReview1Session(getReviewSession(userGroup.id, "review_1"));
-    setReview2Session(getReviewSession(userGroup.id, "review_2"));
-    setFinalReviewSession(getReviewSession(userGroup.id, "final_review"));
-
-    // Load review messages
-    setReview1Messages(
-      getReviewMessagesByGroupAndType(userGroup.id, "review_1")
-    );
-    setReview2Messages(
-      getReviewMessagesByGroupAndType(userGroup.id, "review_2")
-    );
-    setFinalReviewMessages(
-      getReviewMessagesByGroupAndType(userGroup.id, "final_review")
-    );
-  }, [profile, router]);
+  }, [profile, router, showToast]);
 
   useEffect(() => {
     if (!user || !profile) {
@@ -148,149 +146,141 @@ export default function ProjectProgressPage() {
   const hasApprovedTopic = topics.some((t) => t.status === "approved");
 
   // Topic Approval Handlers
-  const handleSubmitTopic = (title: string, description: string) => {
+  const handleSubmitTopic = async (title: string, description: string) => {
     if (!group || !profile) return;
     try {
-      createTopic(group.id, title, description, profile.id);
+      await projectTopicsApi.create({ title, description });
       showToast("Topic submitted successfully!", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to submit topic", "error");
     }
   };
 
-  const handleApproveTopic = (topicId: string) => {
+  const handleApproveTopic = async (topicId: string) => {
     if (!profile) return;
     try {
-      approveTopic(topicId, profile.id);
+      await projectTopicsApi.approve(topicId);
       showToast("Topic approved!", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to approve topic", "error");
     }
   };
 
-  const handleRejectTopic = (topicId: string) => {
+  const handleRejectTopic = async (topicId: string) => {
     if (!profile) return;
     try {
-      rejectTopic(topicId, profile.id);
+      await projectTopicsApi.reject(topicId);
       showToast("Topic rejected", "info");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to reject topic", "error");
     }
   };
 
-  const handleRequestRevision = (topicId: string, feedback: string) => {
+  const handleRequestRevision = async (topicId: string, feedback: string) => {
     if (!profile) return;
     try {
-      requestTopicRevision(topicId, profile.id, feedback);
+      await projectTopicsApi.requestRevision(topicId, feedback);
       showToast("Revision requested", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to request revision", "error");
     }
   };
 
-  const handleSendTopicMessage = (content: string, links?: string[]) => {
+  const handleSendTopicMessage = async (content: string, links?: string[]) => {
     if (!group || !profile) return;
     try {
-      addTopicMessage(
-        "general",
-        group.id,
-        profile.id,
-        profile.name,
+      await projectTopicsApi.addMessage({
+        topicId: "general",
         content,
-        profile.role as "student" | "faculty",
-        links
-      );
-      loadData();
+        links,
+      });
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to send message", "error");
     }
   };
 
   // Review Handlers
-  const handleSubmitProgress = (
+  const handleSubmitProgress = async (
     reviewType: ReviewType,
     percentage: number,
     description: string
   ) => {
     if (!group || !profile) return;
     try {
-      createReviewSession(group.id, reviewType, percentage, description, profile.id);
+      await reviewsApi.submitProgress(reviewType, {
+        progressPercentage: percentage,
+        progressDescription: description,
+      });
       showToast("Progress submitted!", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to submit progress", "error");
     }
   };
 
-  const handleUpdateProgress = (
+  const handleUpdateProgress = async (
     reviewType: ReviewType,
     percentage: number,
     description: string
   ) => {
     if (!group || !profile) return;
-    const session = getReviewSession(group.id, reviewType);
-    if (!session) return;
     try {
-      updateReviewSession(session.id, {
+      await reviewsApi.submitProgress(reviewType, {
         progressPercentage: percentage,
         progressDescription: description,
       });
       showToast("Progress updated!", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to update progress", "error");
     }
   };
 
-  const handleSubmitFeedback = (reviewType: ReviewType, feedback: string) => {
-    if (!group || !profile) return;
-    const session = getReviewSession(group.id, reviewType);
-    if (!session) return;
+  const handleSubmitFeedback = async (reviewType: ReviewType, feedback: string) => {
+    if (!profile) return;
     try {
-      addReviewFeedback(session.id, feedback, profile.id);
+      const session = await reviewsApi.getMySession(reviewType);
+      if (!session) return;
+      await reviewsApi.submitFeedback(session.id, feedback);
       showToast("Feedback submitted!", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to submit feedback", "error");
     }
   };
 
-  const handleMarkComplete = (reviewType: ReviewType) => {
-    if (!group) return;
-    const session = getReviewSession(group.id, reviewType);
-    if (!session) return;
+  const handleMarkComplete = async (reviewType: ReviewType) => {
     try {
-      markReviewComplete(session.id);
+      const session = await reviewsApi.getMySession(reviewType);
+      if (!session) return;
+      await reviewsApi.markComplete(session.id);
       showToast("Review marked complete!", "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to mark complete", "error");
     }
   };
 
-  const handleSendReviewMessage = (
+  const handleSendReviewMessage = async (
     reviewType: ReviewType,
     content: string,
     links?: string[]
   ) => {
-    if (!group || !profile) return;
-    const session = getReviewSession(group.id, reviewType);
-    if (!session) return;
+    if (!profile) return;
     try {
-      addReviewMessage(
-        session.id,
-        group.id,
-        profile.id,
-        profile.name,
+      const session = await reviewsApi.getMySession(reviewType);
+      if (!session) return;
+      await reviewsApi.addMessage({
+        sessionId: session.id,
         content,
-        profile.role as "student" | "faculty",
-        links
-      );
-      loadData();
+        links,
+      });
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to send message", "error");
     }

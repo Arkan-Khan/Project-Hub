@@ -7,6 +7,8 @@ import { GroupsModule } from './groups/groups.module';
 import { MentorFormsModule } from './mentor-forms/mentor-forms.module';
 import { MentorPreferencesModule } from './mentor-preferences/mentor-preferences.module';
 import { MentorAllocationsModule } from './mentor-allocations/mentor-allocations.module';
+import { ProjectTopicsModule } from './project-topics/project-topics.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -22,6 +24,8 @@ import { PrismaModule } from './prisma/prisma.module';
     MentorFormsModule,
     MentorPreferencesModule,
     MentorAllocationsModule,
+    ProjectTopicsModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}

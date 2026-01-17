@@ -269,3 +269,117 @@ export const mentorAllocationApi = {
     return api.post<{ message: string }>(`/mentor-allocations/${id}/reject`);
   },
 };
+
+// ============ PROJECT TOPICS API ============
+
+import { ProjectTopic, TopicMessage, TopicStatus } from '@/types';
+
+export interface CreateTopicRequest {
+  title: string;
+  description: string;
+}
+
+export interface ReviewTopicRequest {
+  feedback?: string;
+}
+
+export interface AddTopicMessageRequest {
+  topicId: string;
+  content: string;
+  links?: string[];
+}
+
+export const projectTopicsApi = {
+  create: async (data: CreateTopicRequest): Promise<ProjectTopic> => {
+    return api.post<ProjectTopic>('/project-topics', data);
+  },
+
+  getMyGroupTopics: async (): Promise<ProjectTopic[]> => {
+    return api.get<ProjectTopic[]>('/project-topics/my-group');
+  },
+
+  approve: async (topicId: string): Promise<ProjectTopic> => {
+    return api.patch<ProjectTopic>(`/project-topics/${topicId}/approve`);
+  },
+
+  reject: async (topicId: string): Promise<ProjectTopic> => {
+    return api.patch<ProjectTopic>(`/project-topics/${topicId}/reject`);
+  },
+
+  requestRevision: async (topicId: string, feedback: string): Promise<ProjectTopic> => {
+    return api.patch<ProjectTopic>(`/project-topics/${topicId}/request-revision`, { feedback });
+  },
+
+  addMessage: async (data: AddTopicMessageRequest): Promise<TopicMessage> => {
+    return api.post<TopicMessage>('/project-topics/messages', data);
+  },
+
+  getMessagesByTopic: async (topicId: string): Promise<TopicMessage[]> => {
+    return api.get<TopicMessage[]>(`/project-topics/messages/topic/${topicId}`);
+  },
+
+  getMyGroupMessages: async (): Promise<TopicMessage[]> => {
+    return api.get<TopicMessage[]>('/project-topics/messages/my-group');
+  },
+};
+
+// ============ REVIEWS API ============
+
+import { ReviewType, ReviewSession, ReviewMessage, ReviewRollout } from '@/types';
+
+export interface RolloutReviewRequest {
+  reviewType: ReviewType;
+}
+
+export interface SubmitProgressRequest {
+  progressPercentage: number;
+  progressDescription: string;
+}
+
+export interface SubmitFeedbackRequest {
+  feedback: string;
+}
+
+export interface AddReviewMessageRequest {
+  sessionId: string;
+  content: string;
+  links?: string[];
+}
+
+export const reviewsApi = {
+  rollout: async (reviewType: ReviewType): Promise<ReviewRollout> => {
+    return api.post<ReviewRollout>('/reviews/rollout', { reviewType });
+  },
+
+  getRollout: async (reviewType: ReviewType): Promise<ReviewRollout | null> => {
+    return api.get<ReviewRollout | null>(`/reviews/rollout/${reviewType}`);
+  },
+
+  submitProgress: async (reviewType: ReviewType, data: SubmitProgressRequest): Promise<ReviewSession> => {
+    return api.post<ReviewSession>(`/reviews/submit/${reviewType}`, data);
+  },
+
+  submitFeedback: async (sessionId: string, feedback: string): Promise<ReviewSession> => {
+    return api.post<ReviewSession>(`/reviews/feedback/${sessionId}`, { feedback });
+  },
+
+  markComplete: async (sessionId: string): Promise<ReviewSession> => {
+    return api.patch<ReviewSession>(`/reviews/${sessionId}/complete`);
+  },
+
+  getMySession: async (reviewType: ReviewType): Promise<ReviewSession | null> => {
+    return api.get<ReviewSession | null>(`/reviews/session/${reviewType}`);
+  },
+
+  addMessage: async (data: AddReviewMessageRequest): Promise<ReviewMessage> => {
+    return api.post<ReviewMessage>('/reviews/messages', data);
+  },
+
+  getMessagesBySession: async (sessionId: string): Promise<ReviewMessage[]> => {
+    return api.get<ReviewMessage[]>(`/reviews/messages/session/${sessionId}`);
+  },
+
+  getMyMessages: async (reviewType: ReviewType): Promise<ReviewMessage[]> => {
+    return api.get<ReviewMessage[]>(`/reviews/messages/${reviewType}`);
+  },
+};
