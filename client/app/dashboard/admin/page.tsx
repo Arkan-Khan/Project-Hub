@@ -12,17 +12,15 @@ import { useToast } from "@/components/ui/toast";
 import { 
   mentorFormApi, 
   profileApi, 
-  groupApi 
-  getReviewRolloutsByDepartment,
-  rolloutReview,
-  getTopicsByGroup,
-  getReviewSession,
+  groupApi,
+  reviewsApi,
+  projectTopicsApi,
 } from "@/lib/api";
 import { MentorAllocationForm, Profile, ReviewRollout, ReviewType } from "@/types";
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 
   const [activeForm, setActiveForm] = useState<MentorAllocationForm | null>(null);
@@ -33,6 +31,9 @@ export default function AdminDashboard() {
   const [reviewRollouts, setReviewRollouts] = useState<ReviewRollout[]>([]);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!user || !profile) {
       router.push("/auth/login");
       return;
@@ -44,7 +45,7 @@ export default function AdminDashboard() {
     }
 
     loadData();
-  }, [user, profile, router]);
+  }, [user, profile, router, authLoading]);
 
   const loadData = async () => {
     if (!profile) return;
@@ -58,55 +59,66 @@ export default function AdminDashboard() {
       const faculty = await profileApi.getFacultyByDepartment(profile.department);
       setFacultyList(faculty);
 
-    if (form) {
-      setSelectedMentors(form.availableMentors);
+      if (form) {
+        setSelectedMentors(form.availableMentors);
+      }
+
+      // Load groups by department with mentor details
+      const deptGroups = await groupApi.getWithDetails(profile.department);
+      
+      // Load topic data for each group
+      const groupsWithDetails = await Promise.all(deptGroups.map(async (group) => {
+        let topicApproved = false;
+        let topicTitle: string | undefined = undefined;
+        
+        try {
+          const topics = await projectTopicsApi.getTopicsByGroupId(group.id);
+          const approvedTopic = topics.find((t) => t.status === 'approved');
+          if (approvedTopic) {
+            topicApproved = true;
+            topicTitle = approvedTopic.title;
+          }
+        } catch (error) {
+          console.error(`Failed to load topics for group ${group.id}:`, error);
+        }
+        
+        return {
+          ...group,
+          leaderName: group.creator?.name,
+          hasSubmittedPreferences: group.hasSubmittedPreferences,
+          mentorAssigned: group.mentorAssigned,
+          topicApproved,
+          topicTitle,
+          review1Status: undefined,
+          review1Progress: undefined,
+          review2Status: undefined,
+          review2Progress: undefined,
+          finalReviewStatus: undefined,
+          finalReviewProgress: undefined,
+        };
+      }));
+
+      setGroups(groupsWithDetails);
+      
+      // Load review rollouts
+      const rollouts: ReviewRollout[] = [];
+      try {
+        const r1 = await reviewsApi.getRollout('review_1');
+        if (r1) rollouts.push(r1);
+      } catch (error) {}
+      try {
+        const r2 = await reviewsApi.getRollout('review_2');
+        if (r2) rollouts.push(r2);
+      } catch (error) {}
+      try {
+        const fr = await reviewsApi.getRollout('final_review');
+        if (fr) rollouts.push(fr);
+      } catch (error) {}
+      
+      setReviewRollouts(rollouts);
+    } catch (error: any) {
+      console.error('Error loading admin data:', error);
     }
-
-    const deptGroups = getGroupsByDepartment(profile.department);
-    const groupsWithDetails = deptGroups.map((group) => {
-      const leader = getProfileById(group.createdBy);
-      const preferences = JSON.parse(
-        localStorage.getItem("projecthub_mentor_preferences") || "[]"
-      ).find((p: any) => p.groupId === group.id);
-
-      const allocations = JSON.parse(
-        localStorage.getItem("projecthub_mentor_allocations") || "[]"
-      ).filter((a: any) => a.groupId === group.id);
-
-      const acceptedAllocation = allocations.find((a: any) => a.status === "accepted");
-
-      // Get topic approval status
-      const topics = getTopicsByGroup(group.id);
-      const approvedTopic = topics.find((t) => t.status === "approved");
-
-      // Get review statuses
-      const r1 = getReviewSession(group.id, "review_1");
-      const r2 = getReviewSession(group.id, "review_2");
-      const fr = getReviewSession(group.id, "final_review");
-
-      return {
-        ...group,
-        leaderName: leader?.name,
-        hasSubmittedPreferences: !!preferences,
-        mentorAssigned: acceptedAllocation
-          ? getProfileById(acceptedAllocation.mentorId)?.name
-          : null,
-        topicApproved: !!approvedTopic,
-        topicTitle: approvedTopic?.title,
-        review1Status: r1?.status,
-        review1Progress: r1?.progressPercentage,
-        review2Status: r2?.status,
-        review2Progress: r2?.progressPercentage,
-        finalReviewStatus: fr?.status,
-        finalReviewProgress: fr?.progressPercentage,
-      };
-    });
-
-    setGroups(groupsWithDetails);
-
-    // Load review rollouts
-    const rollouts = getReviewRolloutsByDepartment(profile.department);
-    setReviewRollouts(rollouts);
   };
 
   const handleToggleMentor = (mentorId: string) => {
@@ -142,14 +154,14 @@ export default function AdminDashboard() {
 
     setLoading(true);
     try {
-      rolloutReview(profile.department, reviewType, profile.id);
+      await reviewsApi.rollout(reviewType);
       const reviewName = reviewType === "review_1" 
         ? "Review 1" 
         : reviewType === "review_2" 
         ? "Review 2" 
         : "Final Review";
       showToast(`${reviewName} rolled out successfully!`, "success");
-      loadData();
+      await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to roll out review", "error");
     } finally {

@@ -359,7 +359,6 @@ export function TopicApprovalSection({
               emptyMessage="Start discussing topics with your team/mentor"
               showHeader={false}
               maxHeight="300px"
-              disabled={!!approvedTopic}
             />
           </CardContent>
         )}

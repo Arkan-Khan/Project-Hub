@@ -200,7 +200,7 @@ model ProjectTopic {
 
 model TopicMessage {
   id         String   @id @default(uuid())
-  topicId    String // "general" for general discussion
+  topicId    String? // null for general discussion, or actual topic ID
   groupId    String
   authorId   String
   authorName String
@@ -209,7 +209,11 @@ model TopicMessage {
   links      String[] // Array of URLs
   createdAt  DateTime @default(now())
 
+  // Optional relation - topicId can be null for general group discussion
   topic ProjectTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@index([groupId])
 }
 
 // ============================================

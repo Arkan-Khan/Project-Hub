@@ -12,4 +12,8 @@ export class AddTopicMessageDto {
   @IsArray()
   @IsOptional()
   links?: string[];
+
+  @IsString()
+  @IsOptional()
+  groupId?: string; // Optional: for faculty sending general messages
 }

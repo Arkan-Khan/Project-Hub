@@ -41,10 +41,7 @@ A comprehensive full-stack platform for students, faculty, and administrators to
 
 ## 📚 Documentation
 
-- **[Complete Setup Guide](SETUP_GUIDE.md)** - Step-by-step instructions for setting up both backend and frontend
-- **[API Documentation](server/API_DOCUMENTATION.md)** - Complete API reference with examples
-- **[API Testing Guide](server/API_TESTING.md)** - How to test endpoints with curl
-- **[Supabase Setup](server/SUPABASE_SETUP.md)** - Database configuration guide
+- **[Complete Project Documentation](docs/PROJECT_DOCUMENTATION.md)** - Comprehensive guide covering setup, architecture, API reference, database schema, and troubleshooting
 - **[Backend README](server/README.md)** - NestJS backend details
 - **[Frontend README](client/README.md)** - Next.js frontend details
 
@@ -63,7 +60,7 @@ A comprehensive full-stack platform for students, faculty, and administrators to
    cd Project-Hub
    ```
 
-2. **Follow the [Complete Setup Guide](SETUP_GUIDE.md)** for detailed instructions
+2. **Follow the [Complete Documentation](docs/PROJECT_DOCUMENTATION.md)** for detailed instructions
 
 **OR** Quick start:
 

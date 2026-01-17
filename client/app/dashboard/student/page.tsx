@@ -15,14 +15,14 @@ import {
   mentorFormApi,
   mentorPreferenceApi,
   mentorAllocationApi,
+  projectTopicsApi,
   GroupWithMembers,
-  getTopicsByGroup,
 } from "@/lib/api";
 import { Group, Profile } from "@/types";
 
 export default function StudentDashboard() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 
   const [group, setGroup] = useState<GroupWithMembers | null>(null);
@@ -39,6 +39,9 @@ export default function StudentDashboard() {
   const [hasApprovedTopic, setHasApprovedTopic] = useState(false);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!user || !profile) {
       router.push("/auth/login");
       return;
@@ -50,7 +53,7 @@ export default function StudentDashboard() {
     }
 
     loadGroupData();
-  }, [user, profile, router]);
+  }, [user, profile, router, authLoading]);
 
   const loadGroupData = async () => {
     if (!profile) return;
@@ -78,15 +81,19 @@ export default function StudentDashboard() {
             mentorName: status.mentorName,
             status: 'Accepted',
           });
-        
-        // Check if topic is approved
-        const topics = getTopicsByGroup(userGroup.id);
-        setHasApprovedTopic(topics.some((t) => t.status === "approved"));
         } else if (status.status === 'pending') {
           setMentorStatus({
             mentorName: '',
             status: 'Pending',
           });
+        }
+        
+        // Check if topic is approved
+        try {
+          const topics = await projectTopicsApi.getMyGroupTopics();
+          setHasApprovedTopic(topics.some((t) => t.status === 'approved'));
+        } catch (error) {
+          console.error('Failed to load topics:', error);
         }
       }
     } catch (error: any) {

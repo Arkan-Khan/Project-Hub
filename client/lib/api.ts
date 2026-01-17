@@ -287,6 +287,7 @@ export interface AddTopicMessageRequest {
   topicId: string;
   content: string;
   links?: string[];
+  groupId?: string; // Optional: for faculty sending general messages
 }
 
 export const projectTopicsApi = {
@@ -296,6 +297,10 @@ export const projectTopicsApi = {
 
   getMyGroupTopics: async (): Promise<ProjectTopic[]> => {
     return api.get<ProjectTopic[]>('/project-topics/my-group');
+  },
+
+  getTopicsByGroupId: async (groupId: string): Promise<ProjectTopic[]> => {
+    return api.get<ProjectTopic[]>(`/project-topics/group/${groupId}`);
   },
 
   approve: async (topicId: string): Promise<ProjectTopic> => {
@@ -320,6 +325,10 @@ export const projectTopicsApi = {
 
   getMyGroupMessages: async (): Promise<TopicMessage[]> => {
     return api.get<TopicMessage[]>('/project-topics/messages/my-group');
+  },
+
+  getMessagesByGroupId: async (groupId: string): Promise<TopicMessage[]> => {
+    return api.get<TopicMessage[]>(`/project-topics/messages/group/${groupId}`);
   },
 };
 
@@ -369,6 +378,10 @@ export const reviewsApi = {
 
   getMySession: async (reviewType: ReviewType): Promise<ReviewSession | null> => {
     return api.get<ReviewSession | null>(`/reviews/session/${reviewType}`);
+  },
+
+  getSessionByGroupId: async (reviewType: ReviewType, groupId: string): Promise<ReviewSession | null> => {
+    return api.get<ReviewSession | null>(`/reviews/session/${reviewType}/group/${groupId}`);
   },
 
   addMessage: async (data: AddReviewMessageRequest): Promise<ReviewMessage> => {

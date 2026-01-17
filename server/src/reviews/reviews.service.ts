@@ -197,6 +197,23 @@ export class ReviewsService {
     });
   }
 
+  // Get review session by groupId (for faculty/admin)
+  async getSessionByGroupId(userId: string, groupId: string, reviewType: ReviewType) {
+    const profile = await this.profilesService.findByUserId(userId);
+    if (!profile || (profile.role !== 'faculty' && profile.role !== 'super_admin')) {
+      throw new ForbiddenException('Only faculty can access group sessions');
+    }
+
+    return this.prisma.reviewSession.findUnique({
+      where: {
+        groupId_reviewType: {
+          groupId,
+          reviewType,
+        },
+      },
+    });
+  }
+
   // Add message to review
   async addMessage(userId: string, addMessageDto: AddReviewMessageDto) {
     const profile = await this.profilesService.findByUserId(userId);

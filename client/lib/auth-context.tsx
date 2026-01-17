@@ -28,8 +28,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAuth = async () => {
     const token = getToken();
+    console.log('[Auth] Refreshing auth, token exists:', !!token);
     
     if (!token) {
+      console.log('[Auth] No token found, clearing state');
       setUser(null);
       setProfile(null);
       setLoading(false);
@@ -37,11 +39,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      console.log('[Auth] Fetching user data...');
       const data = await authApi.getMe();
+      console.log('[Auth] Got user data:', data.user?.email);
       setUser(data.user);
       setProfile(data.profile || null);
-    } catch (error) {
-      console.error('Auth refresh failed:', error);
+    } catch (error: any) {
+      console.error('[Auth] Auth refresh failed:', error.message);
+      // If token is invalid (401), it will be cleared by api-client
+      // Only clear state here
       setUser(null);
       setProfile(null);
     } finally {

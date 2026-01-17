@@ -410,7 +410,6 @@ export function ReviewSection({
               emptyMessage="Start the discussion about this review"
               showHeader={false}
               maxHeight="300px"
-              disabled={session?.status === "completed"}
             />
           </CardContent>
         )}

@@ -57,6 +57,16 @@ export class ReviewsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('session/:reviewType/group/:groupId')
+  async getSessionByGroupId(
+    @Request() req: ExpressRequest,
+    @Param('reviewType') reviewType: ReviewType,
+    @Param('groupId') groupId: string,
+  ) {
+    return this.reviewsService.getSessionByGroupId(req.user.userId, groupId, reviewType);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('messages')
   async addMessage(@Request() req: ExpressRequest, @Body() addMessageDto: AddReviewMessageDto) {
     return this.reviewsService.addMessage(req.user.userId, addMessageDto);

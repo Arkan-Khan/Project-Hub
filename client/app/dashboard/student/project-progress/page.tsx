@@ -28,7 +28,7 @@ import {
 
 export default function ProjectProgressPage() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 
   const [group, setGroup] = useState<Group | null>(null);
@@ -124,6 +124,9 @@ export default function ProjectProgressPage() {
   }, [profile, router, showToast]);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!user || !profile) {
       router.push("/auth/login");
       return;
@@ -135,7 +138,7 @@ export default function ProjectProgressPage() {
     }
 
     loadData();
-  }, [user, profile, router, refreshKey, loadData]);
+  }, [user, profile, router, refreshKey, loadData, authLoading]);
 
   const handleRefresh = () => {
     setRefreshKey((k) => k + 1);

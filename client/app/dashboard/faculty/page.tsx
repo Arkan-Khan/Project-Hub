@@ -18,23 +18,11 @@ import { TopicApprovalSection } from "@/components/topic-approval-section";
 import { ReviewSection } from "@/components/review-section";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
-import { mentorAllocationApi   getTeamProgressForMentor,
-  getTopicsByGroup,
-  getTopicMessagesByGroup,
-  createTopic,
-  approveTopic,
-  rejectTopic,
-  requestTopicRevision,
-  addTopicMessage,
-  getReviewRollout,
-  getReviewSession,
-  getReviewMessagesByGroupAndType,
-  createReviewSession,
-  updateReviewSession,
-  addReviewFeedback,
-  markReviewComplete,
-  addReviewMessage,
-  getGroupById,
+import { 
+  mentorAllocationApi,
+  groupApi,
+  projectTopicsApi,
+  reviewsApi,
 } from "@/lib/api";
 import {
   MentorAllocation,
@@ -55,7 +43,7 @@ interface AllocationWithDetails extends MentorAllocation {
 
 export default function FacultyDashboard() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 
   const [allocations, setAllocations] = useState<AllocationWithDetails[]>([]);
@@ -80,6 +68,9 @@ export default function FacultyDashboard() {
   const [finalReviewRolledOut, setFinalReviewRolledOut] = useState(false);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!user || !profile) {
       router.push("/auth/login");
       return;
@@ -91,9 +82,9 @@ export default function FacultyDashboard() {
     }
 
     loadAllocations();
-  }, [user, profile, router]);
+  }, [user, profile, router, authLoading]);
 
-  const loadAllocations = async useCallback(() => {
+  const loadAllocations = useCallback(async () => {
     if (!profile) return;
 
     try {
@@ -106,38 +97,160 @@ export default function FacultyDashboard() {
         return a.preferenceRank - b.preferenceRank;
       });
 
-    setAllocations(allocationsWithDetails);
+      setAllocations(mentorAllocations);
 
-    // Load team progress
-    const progress = getTeamProgressForMentor(profile.id);
-    setTeamProgress(progress);
-  }, [profile]);
+      // Build team progress from accepted allocations
+      const acceptedAllocations = mentorAllocations.filter(a => a.status === "accepted");
+      const progress: TeamProgress[] = [];
 
-  const loadTeamData = useCallback((teamProg: TeamProgress) => {
-    const group = getGroupById(teamProg.groupId);
-    setSelectedGroup(group);
+      // Load review rollouts once
+      let review1Rolled = false;
+      let review2Rolled = false;
+      let finalReviewRolled = false;
+      
+      try {
+        const r1 = await reviewsApi.getRollout("review_1");
+        const r2 = await reviewsApi.getRollout("review_2");
+        const fr = await reviewsApi.getRollout("final_review");
+        
+        review1Rolled = !!r1?.isActive;
+        review2Rolled = !!r2?.isActive;
+        finalReviewRolled = !!fr?.isActive;
+      } catch (error) {
+        console.error("Failed to load review rollouts:", error);
+      }
 
-    if (group) {
-      // Load topics
-      setTopics(getTopicsByGroup(group.id));
-      setTopicMessages(getTopicMessagesByGroup(group.id));
+      for (const allocation of acceptedAllocations) {
+        if (!allocation.group) continue;
 
-      // Load review rollouts
-      setReview1RolledOut(!!getReviewRollout(group.department, "review_1"));
-      setReview2RolledOut(!!getReviewRollout(group.department, "review_2"));
-      setFinalReviewRolledOut(!!getReviewRollout(group.department, "final_review"));
+        // Get topics for this group
+        const topics = await projectTopicsApi.getTopicsByGroupId(allocation.group.id).catch(() => []);
+        const approvedTopic = topics.find(t => t.status === "approved");
 
-      // Load review sessions
-      setReview1Session(getReviewSession(group.id, "review_1"));
-      setReview2Session(getReviewSession(group.id, "review_2"));
-      setFinalReviewSession(getReviewSession(group.id, "final_review"));
+        // Get review sessions for this group
+        const [r1Session, r2Session, frSession] = await Promise.all([
+          reviewsApi.getSessionByGroupId("review_1", allocation.group.id).catch(() => null),
+          reviewsApi.getSessionByGroupId("review_2", allocation.group.id).catch(() => null),
+          reviewsApi.getSessionByGroupId("final_review", allocation.group.id).catch(() => null),
+        ]);
 
-      // Load review messages
-      setReview1Messages(getReviewMessagesByGroupAndType(group.id, "review_1"));
-      setReview2Messages(getReviewMessagesByGroupAndType(group.id, "review_2"));
-      setFinalReviewMessages(getReviewMessagesByGroupAndType(group.id, "final_review"));
+        progress.push({
+          groupId: allocation.group.id,
+          groupDisplayId: allocation.group.groupId,
+          topicApproval: {
+            status: approvedTopic ? "approved" : topics.length > 0 ? "pending" : "not_started",
+            approvedTopic: approvedTopic?.title,
+            totalTopicsSubmitted: topics.length,
+          },
+          review1: {
+            status: r1Session?.status || "not_started",
+            progressPercentage: r1Session?.progressPercentage || 0,
+            isRolledOut: review1Rolled,
+          },
+          review2: {
+            status: r2Session?.status || "not_started",
+            progressPercentage: r2Session?.progressPercentage || 0,
+            isRolledOut: review2Rolled,
+          },
+          finalReview: {
+            status: frSession?.status || "not_started",
+            progressPercentage: frSession?.progressPercentage || 0,
+            isRolledOut: finalReviewRolled,
+          },
+        });
+      }
+
+      setTeamProgress(progress);
+    } catch (error) {
+      console.error("Failed to load allocations:", error);
+      showToast("Failed to load mentor allocations", "error");
     }
-  }, []);
+  }, [profile, showToast]);
+
+  const loadTeamData = useCallback(async (teamProg: TeamProgress) => {
+    try {
+      const group = await groupApi.getById(teamProg.groupId);
+      setSelectedGroup(group);
+
+      if (group) {
+        // Load topics and messages via API
+        const [topicsData, messagesData] = await Promise.all([
+          projectTopicsApi.getTopicsByGroupId(group.id),
+          projectTopicsApi.getMessagesByGroupId(group.id),
+        ]);
+        
+        console.log('Loaded team data:', { 
+          groupId: group.id, 
+          topicsCount: topicsData.length, 
+          topics: topicsData,
+          messagesCount: messagesData.length 
+        });
+        
+        setTopics(topicsData);
+        setTopicMessages(messagesData);
+
+        // Load review rollouts
+        try {
+          const review1Rollout = await reviewsApi.getRollout("review_1");
+          const review2Rollout = await reviewsApi.getRollout("review_2");
+          const finalReviewRollout = await reviewsApi.getRollout("final_review");
+
+          setReview1RolledOut(!!review1Rollout?.isActive);
+          setReview2RolledOut(!!review2Rollout?.isActive);
+          setFinalReviewRolledOut(!!finalReviewRollout?.isActive);
+        } catch (error) {
+          console.error("Failed to load review rollouts:", error);
+          setReview1RolledOut(false);
+          setReview2RolledOut(false);
+          setFinalReviewRolledOut(false);
+        }
+        
+        // Load review sessions for this group
+        try {
+          const [r1Session, r2Session, frSession] = await Promise.all([
+            reviewsApi.getSessionByGroupId("review_1", group.id).catch(() => null),
+            reviewsApi.getSessionByGroupId("review_2", group.id).catch(() => null),
+            reviewsApi.getSessionByGroupId("final_review", group.id).catch(() => null),
+          ]);
+          
+          setReview1Session(r1Session);
+          setReview2Session(r2Session);
+          setFinalReviewSession(frSession);
+          
+          // Load messages for each session
+          if (r1Session) {
+            const msgs = await reviewsApi.getMessagesBySession(r1Session.id).catch(() => []);
+            setReview1Messages(msgs);
+          } else {
+            setReview1Messages([]);
+          }
+          if (r2Session) {
+            const msgs = await reviewsApi.getMessagesBySession(r2Session.id).catch(() => []);
+            setReview2Messages(msgs);
+          } else {
+            setReview2Messages([]);
+          }
+          if (frSession) {
+            const msgs = await reviewsApi.getMessagesBySession(frSession.id).catch(() => []);
+            setFinalReviewMessages(msgs);
+          } else {
+            setFinalReviewMessages([]);
+          }
+        } catch (error) {
+          console.error("Failed to load review sessions:", error);
+          setReview1Session(null);
+          setReview2Session(null);
+          setFinalReviewSession(null);
+          setReview1Messages([]);
+          setReview2Messages([]);
+          setFinalReviewMessages([]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load team data:", error);
+      showToast("Failed to load team data", "error");
+    }
+  }, [showToast]);
 
   const openTeamDialog = (team: TeamProgress) => {
     setSelectedTeam(team);
@@ -192,72 +305,64 @@ export default function FacultyDashboard() {
     }
   };
 
-  const handleApproveTopic = (topicId: string) => {
+  const handleApproveTopic = async (topicId: string) => {
     if (!profile) return;
     try {
-      approveTopic(topicId, profile.id);
+      await projectTopicsApi.approve(topicId);
       showToast("Topic approved!", "success");
-      if (selectedTeam) loadTeamData(selectedTeam);
-      loadAllocations();
+      if (selectedTeam) await loadTeamData(selectedTeam);
+      await loadAllocations();
     } catch (error: any) {
       showToast(error.message || "Failed to approve topic", "error");
     }
   };
 
-  const handleRejectTopic = (topicId: string) => {
+  const handleRejectTopic = async (topicId: string) => {
     if (!profile) return;
     try {
-      rejectTopic(topicId, profile.id);
+      await projectTopicsApi.reject(topicId);
       showToast("Topic rejected", "info");
-      if (selectedTeam) loadTeamData(selectedTeam);
+      if (selectedTeam) await loadTeamData(selectedTeam);
     } catch (error: any) {
       showToast(error.message || "Failed to reject topic", "error");
     }
   };
 
-  const handleRequestRevision = (topicId: string, feedback: string) => {
+  const handleRequestRevision = async (topicId: string, feedback: string) => {
     if (!profile) return;
     try {
-      requestTopicRevision(topicId, profile.id, feedback);
+      await projectTopicsApi.requestRevision(topicId, feedback);
       showToast("Revision requested", "success");
-      if (selectedTeam) loadTeamData(selectedTeam);
+      if (selectedTeam) await loadTeamData(selectedTeam);
     } catch (error: any) {
       showToast(error.message || "Failed to request revision", "error");
     }
   };
 
-  const handleSendTopicMessage = (content: string, links?: string[]) => {
+  const handleSendTopicMessage = async (content: string, links?: string[]) => {
     if (!selectedGroup || !profile) return;
     try {
-      addTopicMessage(
-        "general",
-        selectedGroup.id,
-        profile.id,
-        profile.name,
+      await projectTopicsApi.addMessage({
+        topicId: "general",
         content,
-        "faculty",
-        links
-      );
-      if (selectedTeam) loadTeamData(selectedTeam);
+        links: links || [],
+        groupId: selectedGroup.id, // Include groupId for faculty general messages
+      });
+      showToast("Message sent!", "success");
+      if (selectedTeam) await loadTeamData(selectedTeam);
     } catch (error: any) {
       showToast(error.message || "Failed to send message", "error");
     }
   };
 
-  // Review Handlers
+  // Review Handlers (Faculty can't submit progress - students do that)
   const handleSubmitProgress = (
     reviewType: ReviewType,
     percentage: number,
     description: string
   ) => {
-    if (!selectedGroup || !profile) return;
-    try {
-      createReviewSession(selectedGroup.id, reviewType, percentage, description, profile.id);
-      showToast("Progress submitted!", "success");
-      if (selectedTeam) loadTeamData(selectedTeam);
-    } catch (error: any) {
-      showToast(error.message || "Failed to submit progress", "error");
-    }
+    // Faculty don't submit progress - students do
+    showToast("Only students can submit progress", "error");
   };
 
   const handleUpdateProgress = (
@@ -265,68 +370,84 @@ export default function FacultyDashboard() {
     percentage: number,
     description: string
   ) => {
-    if (!selectedGroup) return;
-    const session = getReviewSession(selectedGroup.id, reviewType);
-    if (!session) return;
-    try {
-      updateReviewSession(session.id, {
-        progressPercentage: percentage,
-        progressDescription: description,
-      });
-      showToast("Progress updated!", "success");
-      if (selectedTeam) loadTeamData(selectedTeam);
-    } catch (error: any) {
-      showToast(error.message || "Failed to update progress", "error");
-    }
+    // Faculty don't update progress - students do
+    showToast("Only students can update progress", "error");
   };
 
-  const handleSubmitFeedback = (reviewType: ReviewType, feedback: string) => {
+  const handleSubmitFeedback = async (reviewType: ReviewType, feedback: string) => {
     if (!selectedGroup || !profile) return;
-    const session = getReviewSession(selectedGroup.id, reviewType);
-    if (!session) return;
+    
+    // Get the appropriate session based on review type
+    let session: ReviewSessionType | null = null;
+    if (reviewType === "review_1") session = review1Session;
+    else if (reviewType === "review_2") session = review2Session;
+    else if (reviewType === "final_review") session = finalReviewSession;
+    
+    if (!session?.id) {
+      showToast("Review session not found", "error");
+      return;
+    }
+    
     try {
-      addReviewFeedback(session.id, feedback, profile.id);
+      await reviewsApi.submitFeedback(session.id, feedback);
       showToast("Feedback submitted!", "success");
-      if (selectedTeam) loadTeamData(selectedTeam);
+      if (selectedTeam) await loadTeamData(selectedTeam);
       loadAllocations();
     } catch (error: any) {
       showToast(error.message || "Failed to submit feedback", "error");
     }
   };
 
-  const handleMarkComplete = (reviewType: ReviewType) => {
+  const handleMarkComplete = async (reviewType: ReviewType) => {
     if (!selectedGroup) return;
-    const session = getReviewSession(selectedGroup.id, reviewType);
-    if (!session) return;
+    
+    // Get the appropriate session based on review type
+    let session: ReviewSessionType | null = null;
+    if (reviewType === "review_1") session = review1Session;
+    else if (reviewType === "review_2") session = review2Session;
+    else if (reviewType === "final_review") session = finalReviewSession;
+    
+    if (!session?.id) {
+      showToast("Review session not found", "error");
+      return;
+    }
+    
     try {
-      markReviewComplete(session.id);
+      await reviewsApi.markComplete(session.id);
       showToast("Review marked complete!", "success");
-      if (selectedTeam) loadTeamData(selectedTeam);
+      if (selectedTeam) await loadTeamData(selectedTeam);
       loadAllocations();
     } catch (error: any) {
       showToast(error.message || "Failed to mark complete", "error");
     }
   };
 
-  const handleSendReviewMessage = (
+  const handleSendReviewMessage = async (
     reviewType: ReviewType,
     content: string,
     links?: string[]
   ) => {
     if (!selectedGroup || !profile) return;
-    const session = getReviewSession(selectedGroup.id, reviewType);
-    if (!session) return;
+    
+    // Get the appropriate session based on review type
+    let session: ReviewSessionType | null = null;
+    if (reviewType === "review_1") session = review1Session;
+    else if (reviewType === "review_2") session = review2Session;
+    else if (reviewType === "final_review") session = finalReviewSession;
+    
+    if (!session?.id) {
+      showToast("Students haven't submitted progress for this review yet. You can send a message in the Topic Approval chat to ping them.", "error");
+      return;
+    }
+    
     try {
-      addReviewMessage(
-        session.id,
-        selectedGroup.id,
-        profile.id,
-        profile.name,
+      await reviewsApi.addMessage({
+        sessionId: session.id,
         content,
-        "faculty",
-        links
-      );
-      if (selectedTeam) loadTeamData(selectedTeam);
+        links: links || [],
+      });
+      showToast("Message sent!", "success");
+      if (selectedTeam) await loadTeamData(selectedTeam);
     } catch (error: any) {
       showToast(error.message || "Failed to send message", "error");
     }
@@ -533,7 +654,7 @@ export default function FacultyDashboard() {
                             : team.review1.progressPercentage
                             ? `${team.review1.progressPercentage}%`
                             : team.review1.isRolledOut
-                            ? "—"
+                            ? "0%"
                             : "🔒"}
                         </p>
                       </div>
@@ -556,7 +677,7 @@ export default function FacultyDashboard() {
                             : team.review2.progressPercentage
                             ? `${team.review2.progressPercentage}%`
                             : team.review2.isRolledOut
-                            ? "—"
+                            ? "0%"
                             : "🔒"}
                         </p>
                       </div>
@@ -579,7 +700,7 @@ export default function FacultyDashboard() {
                             : team.finalReview.progressPercentage
                             ? `${team.finalReview.progressPercentage}%`
                             : team.finalReview.isRolledOut
-                            ? "—"
+                            ? "0%"
                             : "🔒"}
                         </p>
                       </div>

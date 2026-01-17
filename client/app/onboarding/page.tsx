@@ -15,7 +15,7 @@ import { Role, Department, ACCESS_CODES } from "@/types";
 export default function OnboardingPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { user, profile, refreshAuth } = useAuth();
+  const { user, profile, refreshAuth, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
@@ -26,6 +26,9 @@ export default function OnboardingPage() {
   const [accessCode, setAccessCode] = useState("");
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!user) {
       router.push("/auth/login");
       return;
@@ -35,7 +38,7 @@ export default function OnboardingPage() {
     if (profile) {
       router.push("/dashboard");
     }
-  }, [user, profile, router]);
+  }, [user, profile, router, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -23,6 +23,12 @@ export class ProjectTopicsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('group/:groupId')
+  async getTopicsByGroupId(@Request() req: ExpressRequest, @Param('groupId') groupId: string) {
+    return this.projectTopicsService.getTopicsByGroupId(req.user.userId, groupId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/approve')
   async approve(@Request() req: ExpressRequest, @Param('id') id: string) {
     return this.projectTopicsService.approveTopic(req.user.userId, id);
@@ -60,5 +66,11 @@ export class ProjectTopicsController {
   @Get('messages/my-group')
   async getMyGroupMessages(@Request() req: ExpressRequest) {
     return this.projectTopicsService.getMessagesByGroup(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('messages/group/:groupId')
+  async getMessagesByGroupId(@Request() req: ExpressRequest, @Param('groupId') groupId: string) {
+    return this.projectTopicsService.getMessagesByGroupId(req.user.userId, groupId);
   }
 }
