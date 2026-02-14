@@ -1,10 +1,22 @@
 -- =====================================================
--- PROJECT HUB - DEMO SEED DATA
+-- PROJECT HUB - SEED FOR MENTOR ALLOCATION TESTING
 -- =====================================================
--- This file contains SQL queries to seed the database with demo data
--- Aligned with frontend types and static.md test data structure
--- 4 teams of 3 students each, 3 faculty, 1 super admin
--- All teams have accepted mentors so topic approval is visible
+-- This seed sets up the system for testing from MENTOR ALLOCATION FORM ROLLOUT
+-- 
+-- What's included:
+-- ✅ 12 Students (4 teams of 3)
+-- ✅ 3 Faculty members
+-- ✅ 1 Super Admin
+-- ✅ 4 Groups/Teams formed (IT01, IT02, IT03, IT04)
+-- ✅ All group memberships
+--
+-- What's NOT included (for testing):
+-- ❌ Mentor Allocation Form (Super Admin will roll out)
+-- ❌ Mentor Preferences (Students will submit after form rollout)
+-- ❌ Mentor Allocations (Faculty will accept/reject)
+-- ❌ Topics, Reviews (will come after mentor allocation)
+--
+-- Password for all users: password123
 -- =====================================================
 
 -- Clear existing data (in reverse order of dependencies)
@@ -24,7 +36,7 @@ DELETE FROM "Profile";
 DELETE FROM "User";
 
 -- =====================================================
--- USERS (password hash is for 'password')
+-- USERS (password hash is for 'password123')
 -- =====================================================
 
 -- Students (12 students for 4 groups of 3)
@@ -96,7 +108,7 @@ VALUES
   ('counter-IT', 'IT', 4);
 
 -- =====================================================
--- GROUPS
+-- GROUPS (4 teams already formed)
 -- =====================================================
 
 INSERT INTO "Group" (id, "groupId", "teamCode", department, "createdBy", "isFull", "createdAt", "updatedAt")
@@ -110,28 +122,28 @@ VALUES
 -- GROUP MEMBERS
 -- =====================================================
 
--- Group 1 members
+-- Group 1 (IT01): Arkan, Anuj, Sahil
 INSERT INTO "GroupMember" (id, "groupId", "profileId", "joinedAt")
 VALUES 
   ('member-1-1', 'group-1', 'profile-student-1', '2025-10-29 10:00:00'),
   ('member-1-2', 'group-1', 'profile-student-2', '2025-10-29 10:00:00'),
   ('member-1-3', 'group-1', 'profile-student-3', '2025-10-29 10:00:00');
 
--- Group 2 members
+-- Group 2 (IT02): Om, Rutuja, Sonal
 INSERT INTO "GroupMember" (id, "groupId", "profileId", "joinedAt")
 VALUES 
   ('member-2-1', 'group-2', 'profile-student-4', '2025-10-29 10:00:00'),
   ('member-2-2', 'group-2', 'profile-student-5', '2025-10-29 10:00:00'),
   ('member-2-3', 'group-2', 'profile-student-6', '2025-10-29 10:00:00');
 
--- Group 3 members
+-- Group 3 (IT03): Pratik, Sankalp, Abhishek
 INSERT INTO "GroupMember" (id, "groupId", "profileId", "joinedAt")
 VALUES 
   ('member-3-1', 'group-3', 'profile-student-7', '2025-10-29 10:00:00'),
   ('member-3-2', 'group-3', 'profile-student-8', '2025-10-29 10:00:00'),
   ('member-3-3', 'group-3', 'profile-student-9', '2025-10-29 10:00:00');
 
--- Group 4 members
+-- Group 4 (IT04): Jack, Kate, Leo
 INSERT INTO "GroupMember" (id, "groupId", "profileId", "joinedAt")
 VALUES 
   ('member-4-1', 'group-4', 'profile-student-10', '2025-10-29 10:00:00'),
@@ -139,113 +151,36 @@ VALUES
   ('member-4-3', 'group-4', 'profile-student-12', '2025-10-29 10:00:00');
 
 -- =====================================================
--- MENTOR ALLOCATION FORM
+-- TESTING WORKFLOW
 -- =====================================================
-
-INSERT INTO "MentorAllocationForm" (id, department, "isActive", "createdBy", "createdAt", "updatedAt")
-VALUES 
-  ('form-1', 'IT', true, 'profile-superadmin', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
-
--- =====================================================
--- AVAILABLE MENTORS FOR THE FORM
--- =====================================================
-
-INSERT INTO "AvailableMentor" (id, "formId", "mentorId")
-VALUES 
-  ('avail-1', 'form-1', 'profile-faculty-1'),
-  ('avail-2', 'form-1', 'profile-faculty-2'),
-  ('avail-3', 'form-1', 'profile-faculty-3'),
-  ('avail-4', 'form-1', 'profile-superadmin');
-
--- =====================================================
--- MENTOR PREFERENCES
--- =====================================================
-
-INSERT INTO "MentorPreference" (id, "groupId", "formId", "mentorChoice1", "mentorChoice2", "mentorChoice3", "submittedBy", "submittedAt")
-VALUES 
-  ('pref-1', 'group-1', 'form-1', 'profile-faculty-1', 'profile-faculty-2', 'profile-faculty-3', 'profile-student-1', '2025-10-29 11:00:00'),
-  ('pref-2', 'group-2', 'form-1', 'profile-faculty-2', 'profile-faculty-3', 'profile-faculty-1', 'profile-student-4', '2025-10-29 11:00:00'),
-  ('pref-3', 'group-3', 'form-1', 'profile-faculty-3', 'profile-faculty-1', 'profile-faculty-2', 'profile-student-7', '2025-10-29 11:00:00'),
-  ('pref-4', 'group-4', 'form-1', 'profile-superadmin', 'profile-faculty-1', 'profile-faculty-2', 'profile-student-10', '2025-10-29 11:00:00');
-
--- =====================================================
--- MENTOR ALLOCATIONS (All Accepted - Required for Topic Approval)
--- =====================================================
-
-INSERT INTO "MentorAllocation" (id, "groupId", "mentorId", "formId", status, "preferenceRank", "createdAt", "updatedAt")
-VALUES 
-  ('alloc-1', 'group-1', 'profile-faculty-1', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
-  ('alloc-2', 'group-2', 'profile-faculty-2', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
-  ('alloc-3', 'group-3', 'profile-faculty-3', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
-  ('alloc-4', 'group-4', 'profile-superadmin', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00');
-
--- =====================================================
--- PROJECT TOPICS (Empty - Ready for testing topic submission)
--- =====================================================
--- No topics inserted - students can submit topics for approval testing
-
--- =====================================================
--- TOPIC MESSAGES (Empty)
--- =====================================================
--- No messages inserted
-
--- =====================================================
--- REVIEW ROLLOUTS (Empty)
--- =====================================================
--- No rollouts inserted
-
--- =====================================================
--- REVIEW SESSIONS (Empty)
--- =====================================================
--- No sessions inserted
-
--- =====================================================
--- REVIEW MESSAGES (Empty)
--- =====================================================
--- No messages inserted
-
--- =====================================================
--- SEED DATA SUMMARY
--- =====================================================
--- Users: 1 Super Admin, 3 Faculty, 12 Students (password: 'password')
--- Groups: 4 groups of 3 students each
--- Mentor Allocations: All 4 groups have ACCEPTED mentors
---   - IT01 (TEAM1) → Dr. Ramesh Kumar (Faculty 1)
---   - IT02 (TEAM2) → Dr. Priya Sharma (Faculty 2)
---   - IT03 (TEAM3) → Dr. Amit Patel (Faculty 3)
---   - IT04 (TEAM4) → Prof. Suresh Coordinator (Super Admin)
--- Project Topics: Empty (ready for topic approval testing)
--- Review Data: Empty (ready for review testing)
+-- 
+-- 1. Login as Super Admin: superadmin@gmail.com / password123
+-- 2. Roll out Mentor Allocation Form (select faculty members)
+-- 3. Login as Student (team leader): student1@gmail.com / password123
+-- 4. Submit mentor preferences (3 choices)
+-- 5. Login as Faculty: faculty1@gmail.com / password123
+-- 6. Accept/Reject team requests
+-- 7. Continue to Topic Approval and Reviews...
 --
--- LOGIN CREDENTIALS (all passwords: 'password'):
---   Students: student1@gmail.com to student12@gmail.com
---   Faculty: faculty1@gmail.com, faculty2@gmail.com, faculty3@gmail.com
---   Super Admin: superadmin@gmail.com
 -- =====================================================
 
--- Verify data
-SELECT 'Users' as entity, COUNT(*) as count FROM "User"
-UNION ALL
-SELECT 'Profiles', COUNT(*) FROM "Profile"
-UNION ALL
-SELECT 'Groups', COUNT(*) FROM "Group"
-UNION ALL
-SELECT 'Group Members', COUNT(*) FROM "GroupMember"
-UNION ALL
-SELECT 'Mentor Forms', COUNT(*) FROM "MentorAllocationForm"
-UNION ALL
-SELECT 'Available Mentors', COUNT(*) FROM "AvailableMentor"
-UNION ALL
-SELECT 'Mentor Preferences', COUNT(*) FROM "MentorPreference"
-UNION ALL
-SELECT 'Mentor Allocations', COUNT(*) FROM "MentorAllocation"
-UNION ALL
-SELECT 'Project Topics', COUNT(*) FROM "ProjectTopic"
-UNION ALL
-SELECT 'Topic Messages', COUNT(*) FROM "TopicMessage"
-UNION ALL
-SELECT 'Review Rollouts', COUNT(*) FROM "ReviewRollout"
-UNION ALL
-SELECT 'Review Sessions', COUNT(*) FROM "ReviewSession"
-UNION ALL
-SELECT 'Review Messages', COUNT(*) FROM "ReviewMessage";
+-- =====================================================
+-- TEST ACCOUNTS REFERENCE
+-- =====================================================
+-- 
+-- SUPER ADMIN:
+--   Email: superadmin@gmail.com
+--   Password: password123
+--
+-- FACULTY:
+--   faculty1@gmail.com / password123 - Prof. Rasika Ransing
+--   faculty2@gmail.com / password123 - Prof. Neha Kudu
+--   faculty3@gmail.com / password123 - Prof. Vinita Bhandiwad
+--
+-- STUDENTS (Team Leaders marked with *):
+--   IT01: student1@gmail.com* (Arkan), student2@gmail.com (Anuj), student3@gmail.com (Sahil)
+--   IT02: student4@gmail.com* (Om), student5@gmail.com (Rutuja), student6@gmail.com (Sonal)
+--   IT03: student7@gmail.com* (Pratik), student8@gmail.com (Sankalp), student9@gmail.com (Abhishek)
+--   IT04: student10@gmail.com* (Jack), student11@gmail.com (Kate), student12@gmail.com (Leo)
+--
+-- =====================================================
