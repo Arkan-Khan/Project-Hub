@@ -81,7 +81,7 @@ export default function MentorPreferencesPage() {
       setFormId(activeForm.id);
 
       // Load available mentors
-      const mentors = activeForm.availableMentors.map(am => am.mentor);
+      const mentors = activeForm.availableMentors.map((am) => am.mentor);
       setAvailableMentors(mentors);
     } catch (error: any) {
       showToast(error.message || "Failed to load mentor form", "error");
@@ -149,9 +149,9 @@ export default function MentorPreferencesPage() {
             <div className="space-y-4">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
                 <p className="text-sm text-blue-900">
-                  <strong>Instructions:</strong> Select exactly 3 mentors in order of
-                  preference. Click on a mentor to select them. Click again to
-                  deselect.
+                  <strong>Instructions:</strong> Select exactly 3 mentors in
+                  order of preference. Click on a mentor to select them. Click
+                  again to deselect.
                 </p>
               </div>
 
@@ -198,17 +198,33 @@ export default function MentorPreferencesPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-lg">{mentor.name}</h3>
+                              <h3 className="font-semibold text-lg">
+                                {mentor.name}
+                              </h3>
                               {mentor.role === "super_admin" && (
                                 <span className="px-2 py-0.5 bg-accent/20 text-accent text-xs font-medium rounded">
                                   Coordinator
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600">{mentor.email}</p>
+                            <p className="text-sm text-gray-600">
+                              {mentor.email}
+                            </p>
                             <p className="text-xs text-gray-500 mt-1">
                               {mentor.department} Department
                             </p>
+                            {mentor.domains && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {mentor.domains.split(",").map((domain, i) => (
+                                  <span
+                                    key={i}
+                                    className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-200"
+                                  >
+                                    {domain.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           {isSelected && (
                             <div className="flex items-center gap-2">
@@ -216,8 +232,8 @@ export default function MentorPreferencesPage() {
                                 {preferenceNum === 1
                                   ? "1st Choice"
                                   : preferenceNum === 2
-                                  ? "2nd Choice"
-                                  : "3rd Choice"}
+                                    ? "2nd Choice"
+                                    : "3rd Choice"}
                               </span>
                               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                                 <Check className="h-5 w-5 text-white" />
@@ -261,4 +277,3 @@ export default function MentorPreferencesPage() {
     </DashboardLayout>
   );
 }
-

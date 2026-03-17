@@ -72,14 +72,16 @@ export default function ProjectProgressPage() {
 
       // Check for accepted mentor
       const statusData = await mentorAllocationApi.getStatus();
-      if (statusData.status !== 'accepted' || !statusData.mentorId) {
+      if (statusData.status !== "accepted" || !statusData.mentorId) {
         router.push("/dashboard/student");
         return;
       }
 
       // Get mentor profile from the group's allocation data
       const allocations = await mentorAllocationApi.getForGroup();
-      const acceptedAllocation = allocations.find((a) => a.status === "accepted");
+      const acceptedAllocation = allocations.find(
+        (a) => a.status === "accepted",
+      );
       if (acceptedAllocation) {
         setMentor(acceptedAllocation.mentor);
       }
@@ -126,7 +128,7 @@ export default function ProjectProgressPage() {
   useEffect(() => {
     // Wait for auth to finish loading
     if (authLoading) return;
-    
+
     if (!user || !profile) {
       router.push("/auth/login");
       return;
@@ -211,7 +213,7 @@ export default function ProjectProgressPage() {
   const handleSubmitProgress = async (
     reviewType: ReviewType,
     percentage: number,
-    description: string
+    description: string,
   ) => {
     if (!group || !profile) return;
     try {
@@ -229,7 +231,7 @@ export default function ProjectProgressPage() {
   const handleUpdateProgress = async (
     reviewType: ReviewType,
     percentage: number,
-    description: string
+    description: string,
   ) => {
     if (!group || !profile) return;
     try {
@@ -244,7 +246,10 @@ export default function ProjectProgressPage() {
     }
   };
 
-  const handleSubmitFeedback = async (reviewType: ReviewType, feedback: string) => {
+  const handleSubmitFeedback = async (
+    reviewType: ReviewType,
+    feedback: string,
+  ) => {
     if (!profile) return;
     try {
       const session = await reviewsApi.getMySession(reviewType);
@@ -272,7 +277,7 @@ export default function ProjectProgressPage() {
   const handleSendReviewMessage = async (
     reviewType: ReviewType,
     content: string,
-    links?: string[]
+    links?: string[],
   ) => {
     if (!profile) return;
     try {
@@ -286,6 +291,35 @@ export default function ProjectProgressPage() {
       await loadData();
     } catch (error: any) {
       showToast(error.message || "Failed to send message", "error");
+    }
+  };
+
+  // Meet Link Handlers
+  const handleSetTopicMeetLink = async (meetLink: string) => {
+    try {
+      await groupApi.setMeetLink(meetLink);
+      showToast("Meet link pinned!", "success");
+      await loadData();
+    } catch (error: any) {
+      showToast(error.message || "Failed to set meet link", "error");
+    }
+  };
+
+  const handleSetReviewMeetLink = async (
+    reviewType: ReviewType,
+    meetLink: string,
+  ) => {
+    try {
+      const session = await reviewsApi.getMySession(reviewType);
+      if (!session) {
+        showToast("Submit progress first before adding a meet link", "error");
+        return;
+      }
+      await reviewsApi.setMeetLink(session.id, meetLink);
+      showToast("Meet link pinned!", "success");
+      await loadData();
+    } catch (error: any) {
+      showToast(error.message || "Failed to set meet link", "error");
     }
   };
 
@@ -378,6 +412,8 @@ export default function ProjectProgressPage() {
               onRejectTopic={handleRejectTopic}
               onRequestRevision={handleRequestRevision}
               onSendMessage={handleSendTopicMessage}
+              meetLink={group.meetLink ?? undefined}
+              onSetMeetLink={handleSetTopicMeetLink}
             />
           </TabsContent>
 
@@ -404,6 +440,10 @@ export default function ProjectProgressPage() {
                 handleSendReviewMessage("review_1", c, l)
               }
               onMarkComplete={() => handleMarkComplete("review_1")}
+              meetLink={review1Session?.meetLink ?? undefined}
+              onSetMeetLink={(link) =>
+                handleSetReviewMeetLink("review_1", link)
+              }
             />
           </TabsContent>
 
@@ -430,6 +470,10 @@ export default function ProjectProgressPage() {
                 handleSendReviewMessage("review_2", c, l)
               }
               onMarkComplete={() => handleMarkComplete("review_2")}
+              meetLink={review2Session?.meetLink ?? undefined}
+              onSetMeetLink={(link) =>
+                handleSetReviewMeetLink("review_2", link)
+              }
             />
           </TabsContent>
 
@@ -456,6 +500,10 @@ export default function ProjectProgressPage() {
                 handleSendReviewMessage("final_review", c, l)
               }
               onMarkComplete={() => handleMarkComplete("final_review")}
+              meetLink={finalReviewSession?.meetLink ?? undefined}
+              onSetMeetLink={(link) =>
+                handleSetReviewMeetLink("final_review", link)
+              }
             />
           </TabsContent>
         </Tabs>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Send, Link as LinkIcon } from "lucide-react";
+import { Send, Link as LinkIcon, Video, ExternalLink } from "lucide-react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -29,6 +29,9 @@ interface ThreadPanelProps {
   maxHeight?: string;
   showHeader?: boolean;
   headerRight?: React.ReactNode;
+  pinnedMeetLink?: string;
+  onSetMeetLink?: (link: string) => void;
+  canSetMeetLink?: boolean;
 }
 
 function formatTime(dateString: string): string {
@@ -77,11 +80,16 @@ export function ThreadPanel({
   maxHeight = "400px",
   showHeader = true,
   headerRight,
+  pinnedMeetLink,
+  onSetMeetLink,
+  canSetMeetLink = false,
 }: ThreadPanelProps) {
   const [inputValue, setInputValue] = React.useState("");
   const [links, setLinks] = React.useState<string[]>([]);
   const [showLinkInput, setShowLinkInput] = React.useState(false);
   const [linkInput, setLinkInput] = React.useState("");
+  const [showMeetLinkInput, setShowMeetLinkInput] = React.useState(false);
+  const [meetLinkInput, setMeetLinkInput] = React.useState("");
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -97,7 +105,10 @@ export function ThreadPanel({
       const contentLinks = extractLinks(inputValue);
       const allLinks = [...new Set([...links, ...contentLinks])];
 
-      onSendMessage(inputValue.trim(), allLinks.length > 0 ? allLinks : undefined);
+      onSendMessage(
+        inputValue.trim(),
+        allLinks.length > 0 ? allLinks : undefined,
+      );
       setInputValue("");
       setLinks([]);
       setShowLinkInput(false);
@@ -135,6 +146,82 @@ export function ThreadPanel({
         </>
       )}
 
+      {/* Pinned Google Meet Link */}
+      {pinnedMeetLink ? (
+        <div className="flex items-center gap-2 px-4 py-2 bg-teal-50 border-b border-teal-200">
+          <Video className="h-4 w-4 text-teal-700 shrink-0" />
+          <span className="text-sm font-medium text-teal-800">Google Meet</span>
+          <a
+            href={pinnedMeetLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-teal-700 hover:underline truncate flex-1"
+          >
+            {pinnedMeetLink}
+          </a>
+          <a
+            href={pinnedMeetLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 inline-flex items-center gap-1 px-3 py-1 bg-teal-600 text-white text-xs font-medium rounded-md hover:bg-teal-700 transition-colors"
+          >
+            Join <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      ) : canSetMeetLink && onSetMeetLink ? (
+        <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
+          {showMeetLinkInput ? (
+            <div className="flex gap-2 items-center">
+              <Video className="h-4 w-4 text-gray-500 shrink-0" />
+              <input
+                type="url"
+                value={meetLinkInput}
+                onChange={(e) => setMeetLinkInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && meetLinkInput.trim()) {
+                    onSetMeetLink(meetLinkInput.trim());
+                    setMeetLinkInput("");
+                    setShowMeetLinkInput(false);
+                  }
+                }}
+                placeholder="Paste Google Meet link..."
+                className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (meetLinkInput.trim()) {
+                    onSetMeetLink(meetLinkInput.trim());
+                    setMeetLinkInput("");
+                    setShowMeetLinkInput(false);
+                  }
+                }}
+              >
+                Pin
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setShowMeetLinkInput(false);
+                  setMeetLinkInput("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowMeetLinkInput(true)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-700 transition-colors"
+            >
+              <Video className="h-4 w-4" />
+              <span>Add Google Meet Link</span>
+            </button>
+          )}
+        </div>
+      ) : null}
+
       {/* Messages Area */}
       <ScrollArea maxHeight={maxHeight} ref={scrollRef} className="flex-1 p-4">
         {messages.length === 0 ? (
@@ -144,8 +231,7 @@ export function ThreadPanel({
         ) : (
           <div className="space-y-4">
             {messages.map((message, index) => {
-              const isOwn =
-                message.authorRole === currentUserRole;
+              const isOwn = message.authorRole === currentUserRole;
               const showDateSeparator =
                 index === 0 ||
                 new Date(message.createdAt).toDateString() !==
@@ -157,11 +243,14 @@ export function ThreadPanel({
                     <div className="flex items-center gap-2 my-4">
                       <Separator className="flex-1" />
                       <span className="text-xs text-gray-400">
-                        {new Date(message.createdAt).toLocaleDateString("en-US", {
-                          weekday: "long",
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {new Date(message.createdAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            weekday: "long",
+                            month: "short",
+                            day: "numeric",
+                          },
+                        )}
                       </span>
                       <Separator className="flex-1" />
                     </div>
@@ -174,7 +263,11 @@ export function ThreadPanel({
                   >
                     <Avatar size="sm">
                       <AvatarFallback
-                        variant={message.authorRole === "faculty" ? "faculty" : "student"}
+                        variant={
+                          message.authorRole === "faculty"
+                            ? "faculty"
+                            : "student"
+                        }
                       >
                         {getInitials(message.authorName)}
                       </AvatarFallback>
@@ -199,8 +292,8 @@ export function ThreadPanel({
                           isOwn
                             ? "bg-primary text-white"
                             : message.authorRole === "faculty"
-                            ? "bg-purple-50 text-gray-900 border border-purple-100"
-                            : "bg-gray-100 text-gray-900"
+                              ? "bg-purple-50 text-gray-900 border border-purple-100"
+                              : "bg-gray-100 text-gray-900"
                         }`}
                       >
                         <p className="text-sm whitespace-pre-wrap">
@@ -312,7 +405,11 @@ export function ThreadPanel({
               >
                 <LinkIcon className="h-4 w-4" />
               </Button>
-              <Button size="sm" onClick={handleSend} disabled={!inputValue.trim()}>
+              <Button
+                size="sm"
+                onClick={handleSend}
+                disabled={!inputValue.trim()}
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>

@@ -3,7 +3,7 @@
  * All backend API calls organized by feature
  */
 
-import { api, setToken, removeToken } from './api-client';
+import { api, setToken, removeToken } from "./api-client";
 import {
   User,
   Profile,
@@ -13,7 +13,7 @@ import {
   MentorAllocation,
   Department,
   Role,
-} from '@/types';
+} from "@/types";
 
 // ============ AUTH API ============
 
@@ -35,13 +35,13 @@ export interface AuthResponse {
 
 export const authApi = {
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/signup', data);
+    const response = await api.post<AuthResponse>("/auth/signup", data);
     setToken(response.token);
     return response;
   },
 
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/login', data);
+    const response = await api.post<AuthResponse>("/auth/login", data);
     setToken(response.token);
     return response;
   },
@@ -51,7 +51,7 @@ export const authApi = {
   },
 
   getMe: async (): Promise<AuthResponse> => {
-    return api.get<AuthResponse>('/auth/me');
+    return api.get<AuthResponse>("/auth/me");
   },
 };
 
@@ -65,15 +65,16 @@ export interface CreateProfileRequest {
   rollNumber?: string;
   semester?: number;
   accessCode?: string;
+  domains?: string;
 }
 
 export const profileApi = {
   create: async (data: CreateProfileRequest): Promise<Profile> => {
-    return api.post<Profile>('/profiles', data);
+    return api.post<Profile>("/profiles", data);
   },
 
   getMe: async (): Promise<Profile> => {
-    return api.get<Profile>('/profiles/me');
+    return api.get<Profile>("/profiles/me");
   },
 
   getById: async (id: string): Promise<Profile> => {
@@ -88,12 +89,14 @@ export const profileApi = {
     return api.get<Profile[]>(`/profiles/by-department/${department}`);
   },
 
-  getFacultyByDepartment: async (department: Department): Promise<Profile[]> => {
+  getFacultyByDepartment: async (
+    department: Department,
+  ): Promise<Profile[]> => {
     return api.get<Profile[]>(`/profiles/faculty/${department}`);
   },
 
   getBatch: async (ids: string[]): Promise<Profile[]> => {
-    return api.post<Profile[]>('/profiles/batch', { ids });
+    return api.post<Profile[]>("/profiles/batch", { ids });
   },
 };
 
@@ -120,6 +123,7 @@ export interface GroupWithMembers {
   creator: Profile;
   hasSubmittedPreferences?: boolean;
   mentorAssigned?: string;
+  meetLink?: string;
 }
 
 export interface JoinGroupRequest {
@@ -128,15 +132,15 @@ export interface JoinGroupRequest {
 
 export const groupApi = {
   create: async (): Promise<GroupWithMembers> => {
-    return api.post<GroupWithMembers>('/groups/create');
+    return api.post<GroupWithMembers>("/groups/create");
   },
 
   join: async (data: JoinGroupRequest): Promise<GroupWithMembers> => {
-    return api.post<GroupWithMembers>('/groups/join', data);
+    return api.post<GroupWithMembers>("/groups/join", data);
   },
 
   getMyGroup: async (): Promise<GroupWithMembers | null> => {
-    return api.get<GroupWithMembers | null>('/groups/my-group');
+    return api.get<GroupWithMembers | null>("/groups/my-group");
   },
 
   getById: async (id: string): Promise<GroupWithMembers> => {
@@ -147,12 +151,18 @@ export const groupApi = {
     return api.get<GroupWithMembers>(`/groups/by-team-code/${teamCode}`);
   },
 
-  getByDepartment: async (department: Department): Promise<GroupWithMembers[]> => {
+  getByDepartment: async (
+    department: Department,
+  ): Promise<GroupWithMembers[]> => {
     return api.get<GroupWithMembers[]>(`/groups/by-department/${department}`);
   },
 
   getWithDetails: async (department: Department): Promise<any[]> => {
     return api.get<any[]>(`/groups/with-details/${department}`);
+  },
+
+  setMeetLink: async (meetLink: string): Promise<GroupWithMembers> => {
+    return api.patch<GroupWithMembers>("/groups/meet-link", { meetLink });
   },
 };
 
@@ -180,16 +190,22 @@ export interface CreateMentorFormRequest {
 }
 
 export const mentorFormApi = {
-  create: async (data: CreateMentorFormRequest): Promise<MentorFormWithMentors> => {
-    return api.post<MentorFormWithMentors>('/mentor-forms', data);
+  create: async (
+    data: CreateMentorFormRequest,
+  ): Promise<MentorFormWithMentors> => {
+    return api.post<MentorFormWithMentors>("/mentor-forms", data);
   },
 
   getActive: async (): Promise<MentorFormWithMentors | null> => {
-    return api.get<MentorFormWithMentors | null>('/mentor-forms/active');
+    return api.get<MentorFormWithMentors | null>("/mentor-forms/active");
   },
 
-  getActiveByDepartment: async (department: Department): Promise<MentorFormWithMentors | null> => {
-    return api.get<MentorFormWithMentors | null>(`/mentor-forms/active/${department}`);
+  getActiveByDepartment: async (
+    department: Department,
+  ): Promise<MentorFormWithMentors | null> => {
+    return api.get<MentorFormWithMentors | null>(
+      `/mentor-forms/active/${department}`,
+    );
   },
 
   getById: async (id: string): Promise<MentorFormWithMentors> => {
@@ -210,19 +226,25 @@ export interface SubmitPreferencesRequest {
 
 export const mentorPreferenceApi = {
   submit: async (data: SubmitPreferencesRequest): Promise<MentorPreference> => {
-    return api.post<MentorPreference>('/mentor-preferences', data);
+    return api.post<MentorPreference>("/mentor-preferences", data);
   },
 
   getMyPreferences: async (): Promise<MentorPreference | null> => {
-    return api.get<MentorPreference | null>('/mentor-preferences/my-preferences');
+    return api.get<MentorPreference | null>(
+      "/mentor-preferences/my-preferences",
+    );
   },
 
   hasSubmitted: async (): Promise<{ hasSubmitted: boolean }> => {
-    return api.get<{ hasSubmitted: boolean }>('/mentor-preferences/has-submitted');
+    return api.get<{ hasSubmitted: boolean }>(
+      "/mentor-preferences/has-submitted",
+    );
   },
 
   getByGroup: async (groupId: string): Promise<MentorPreference | null> => {
-    return api.get<MentorPreference | null>(`/mentor-preferences/by-group/${groupId}`);
+    return api.get<MentorPreference | null>(
+      `/mentor-preferences/by-group/${groupId}`,
+    );
   },
 };
 
@@ -235,30 +257,43 @@ export interface AllocationWithDetails extends MentorAllocation {
 }
 
 export interface MentorStatusResponse {
-  status: 'no_group' | 'not_submitted' | 'pending' | 'accepted' | 'all_rejected';
+  status:
+    | "no_group"
+    | "not_submitted"
+    | "pending"
+    | "accepted"
+    | "all_rejected";
   mentorName?: string;
   mentorId?: string;
+  currentPriority?: number;
 }
 
 export const mentorAllocationApi = {
   getForMentor: async (): Promise<AllocationWithDetails[]> => {
-    return api.get<AllocationWithDetails[]>('/mentor-allocations/for-mentor');
+    return api.get<AllocationWithDetails[]>("/mentor-allocations/for-mentor");
   },
 
   getForGroup: async (): Promise<MentorAllocation[]> => {
-    return api.get<MentorAllocation[]>('/mentor-allocations/for-group');
+    return api.get<MentorAllocation[]>("/mentor-allocations/for-group");
   },
 
-  getAcceptedMentor: async (): Promise<{ mentor: Profile; status: string } | null> => {
-    return api.get<{ mentor: Profile; status: string } | null>('/mentor-allocations/accepted-mentor');
+  getAcceptedMentor: async (): Promise<{
+    mentor: Profile;
+    status: string;
+  } | null> => {
+    return api.get<{ mentor: Profile; status: string } | null>(
+      "/mentor-allocations/accepted-mentor",
+    );
   },
 
   getStatus: async (): Promise<MentorStatusResponse> => {
-    return api.get<MentorStatusResponse>('/mentor-allocations/status');
+    return api.get<MentorStatusResponse>("/mentor-allocations/status");
   },
 
   getAcceptedTeams: async (): Promise<AllocationWithDetails[]> => {
-    return api.get<AllocationWithDetails[]>('/mentor-allocations/accepted-teams');
+    return api.get<AllocationWithDetails[]>(
+      "/mentor-allocations/accepted-teams",
+    );
   },
 
   accept: async (id: string): Promise<{ message: string }> => {
@@ -272,7 +307,7 @@ export const mentorAllocationApi = {
 
 // ============ PROJECT TOPICS API ============
 
-import { ProjectTopic, TopicMessage, TopicStatus } from '@/types';
+import { ProjectTopic, TopicMessage, TopicStatus } from "@/types";
 
 export interface CreateTopicRequest {
   title: string;
@@ -292,11 +327,11 @@ export interface AddTopicMessageRequest {
 
 export const projectTopicsApi = {
   create: async (data: CreateTopicRequest): Promise<ProjectTopic> => {
-    return api.post<ProjectTopic>('/project-topics', data);
+    return api.post<ProjectTopic>("/project-topics", data);
   },
 
   getMyGroupTopics: async (): Promise<ProjectTopic[]> => {
-    return api.get<ProjectTopic[]>('/project-topics/my-group');
+    return api.get<ProjectTopic[]>("/project-topics/my-group");
   },
 
   getTopicsByGroupId: async (groupId: string): Promise<ProjectTopic[]> => {
@@ -311,12 +346,18 @@ export const projectTopicsApi = {
     return api.patch<ProjectTopic>(`/project-topics/${topicId}/reject`);
   },
 
-  requestRevision: async (topicId: string, feedback: string): Promise<ProjectTopic> => {
-    return api.patch<ProjectTopic>(`/project-topics/${topicId}/request-revision`, { feedback });
+  requestRevision: async (
+    topicId: string,
+    feedback: string,
+  ): Promise<ProjectTopic> => {
+    return api.patch<ProjectTopic>(
+      `/project-topics/${topicId}/request-revision`,
+      { feedback },
+    );
   },
 
   addMessage: async (data: AddTopicMessageRequest): Promise<TopicMessage> => {
-    return api.post<TopicMessage>('/project-topics/messages', data);
+    return api.post<TopicMessage>("/project-topics/messages", data);
   },
 
   getMessagesByTopic: async (topicId: string): Promise<TopicMessage[]> => {
@@ -324,7 +365,7 @@ export const projectTopicsApi = {
   },
 
   getMyGroupMessages: async (): Promise<TopicMessage[]> => {
-    return api.get<TopicMessage[]>('/project-topics/messages/my-group');
+    return api.get<TopicMessage[]>("/project-topics/messages/my-group");
   },
 
   getMessagesByGroupId: async (groupId: string): Promise<TopicMessage[]> => {
@@ -334,7 +375,12 @@ export const projectTopicsApi = {
 
 // ============ REVIEWS API ============
 
-import { ReviewType, ReviewSession, ReviewMessage, ReviewRollout } from '@/types';
+import {
+  ReviewType,
+  ReviewSession,
+  ReviewMessage,
+  ReviewRollout,
+} from "@/types";
 
 export interface RolloutReviewRequest {
   reviewType: ReviewType;
@@ -357,35 +403,50 @@ export interface AddReviewMessageRequest {
 
 export const reviewsApi = {
   rollout: async (reviewType: ReviewType): Promise<ReviewRollout> => {
-    return api.post<ReviewRollout>('/reviews/rollout', { reviewType });
+    return api.post<ReviewRollout>("/reviews/rollout", { reviewType });
   },
 
   getRollout: async (reviewType: ReviewType): Promise<ReviewRollout | null> => {
     return api.get<ReviewRollout | null>(`/reviews/rollout/${reviewType}`);
   },
 
-  submitProgress: async (reviewType: ReviewType, data: SubmitProgressRequest): Promise<ReviewSession> => {
+  submitProgress: async (
+    reviewType: ReviewType,
+    data: SubmitProgressRequest,
+  ): Promise<ReviewSession> => {
     return api.post<ReviewSession>(`/reviews/submit/${reviewType}`, data);
   },
 
-  submitFeedback: async (sessionId: string, feedback: string): Promise<ReviewSession> => {
-    return api.post<ReviewSession>(`/reviews/feedback/${sessionId}`, { feedback });
+  submitFeedback: async (
+    sessionId: string,
+    feedback: string,
+  ): Promise<ReviewSession> => {
+    return api.post<ReviewSession>(`/reviews/feedback/${sessionId}`, {
+      feedback,
+    });
   },
 
   markComplete: async (sessionId: string): Promise<ReviewSession> => {
     return api.patch<ReviewSession>(`/reviews/${sessionId}/complete`);
   },
 
-  getMySession: async (reviewType: ReviewType): Promise<ReviewSession | null> => {
+  getMySession: async (
+    reviewType: ReviewType,
+  ): Promise<ReviewSession | null> => {
     return api.get<ReviewSession | null>(`/reviews/session/${reviewType}`);
   },
 
-  getSessionByGroupId: async (reviewType: ReviewType, groupId: string): Promise<ReviewSession | null> => {
-    return api.get<ReviewSession | null>(`/reviews/session/${reviewType}/group/${groupId}`);
+  getSessionByGroupId: async (
+    reviewType: ReviewType,
+    groupId: string,
+  ): Promise<ReviewSession | null> => {
+    return api.get<ReviewSession | null>(
+      `/reviews/session/${reviewType}/group/${groupId}`,
+    );
   },
 
   addMessage: async (data: AddReviewMessageRequest): Promise<ReviewMessage> => {
-    return api.post<ReviewMessage>('/reviews/messages', data);
+    return api.post<ReviewMessage>("/reviews/messages", data);
   },
 
   getMessagesBySession: async (sessionId: string): Promise<ReviewMessage[]> => {
@@ -394,5 +455,14 @@ export const reviewsApi = {
 
   getMyMessages: async (reviewType: ReviewType): Promise<ReviewMessage[]> => {
     return api.get<ReviewMessage[]>(`/reviews/messages/${reviewType}`);
+  },
+
+  setMeetLink: async (
+    sessionId: string,
+    meetLink: string,
+  ): Promise<ReviewSession> => {
+    return api.patch<ReviewSession>(`/reviews/${sessionId}/meet-link`, {
+      meetLink,
+    });
   },
 };

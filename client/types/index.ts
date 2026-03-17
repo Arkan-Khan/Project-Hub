@@ -17,6 +17,7 @@ export interface Profile {
   department: Department;
   rollNumber?: string; // For students
   semester?: number; // For students
+  domains?: string; // Comma-separated domain tags for faculty
   createdAt: string;
 }
 
@@ -28,6 +29,7 @@ export interface Group {
   createdBy: string; // profile id of leader
   members: string[]; // array of profile ids
   isFull: boolean; // true if members.length >= 3
+  meetLink?: string; // Pinned Google Meet link for topic discussion
   createdAt: string;
 }
 
@@ -54,7 +56,7 @@ export interface MentorAllocation {
   groupId: string;
   mentorId: string;
   formId: string;
-  status: "pending" | "accepted" | "rejected";
+  status: "pending" | "accepted" | "rejected" | "waiting";
   preferenceRank: number; // 1, 2, or 3
   createdAt: string;
   updatedAt: string;
@@ -137,6 +139,7 @@ export interface ReviewSession {
   mentorFeedback?: string;
   feedbackGivenBy?: string; // mentor profile id
   feedbackGivenAt?: string;
+  meetLink?: string; // Pinned Google Meet link
 }
 
 export interface ReviewMessage {
@@ -181,4 +184,3 @@ export interface TeamProgress {
     isRolledOut: boolean;
   };
 }
-

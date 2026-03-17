@@ -41,6 +41,8 @@ interface TopicApprovalSectionProps {
   onRequestRevision: (topicId: string, feedback: string) => void;
   onSendMessage: (content: string, links?: string[]) => void;
   maxTopics?: number;
+  meetLink?: string;
+  onSetMeetLink?: (link: string) => void;
 }
 
 function getStatusConfig(status: TopicStatus) {
@@ -97,19 +99,22 @@ export function TopicApprovalSection({
   onRequestRevision,
   onSendMessage,
   maxTopics = 3,
+  meetLink,
+  onSetMeetLink,
 }: TopicApprovalSectionProps) {
   const [showAddTopic, setShowAddTopic] = React.useState(false);
   const [newTopicTitle, setNewTopicTitle] = React.useState("");
   const [newTopicDescription, setNewTopicDescription] = React.useState("");
   const [expandedTopic, setExpandedTopic] = React.useState<string | null>(null);
   const [showRevisionDialog, setShowRevisionDialog] = React.useState(false);
-  const [selectedTopicForRevision, setSelectedTopicForRevision] = React.useState<string | null>(null);
+  const [selectedTopicForRevision, setSelectedTopicForRevision] =
+    React.useState<string | null>(null);
   const [revisionFeedback, setRevisionFeedback] = React.useState("");
   const [showChat, setShowChat] = React.useState(true);
 
   const approvedTopic = topics.find((t) => t.status === "approved");
   const pendingTopics = topics.filter(
-    (t) => t.status === "submitted" || t.status === "under_review"
+    (t) => t.status === "submitted" || t.status === "under_review",
   );
   const canAddMoreTopics =
     currentUserRole === "student" &&
@@ -222,8 +227,8 @@ export function TopicApprovalSection({
                       topic.status === "approved"
                         ? "border-green-300 bg-green-50/50"
                         : topic.status === "rejected"
-                        ? "border-red-200 bg-red-50/30"
-                        : "border-gray-200"
+                          ? "border-red-200 bg-red-50/30"
+                          : "border-gray-200"
                     }`}
                   >
                     {/* Topic Header */}
@@ -359,6 +364,9 @@ export function TopicApprovalSection({
               emptyMessage="Start discussing topics with your team/mentor"
               showHeader={false}
               maxHeight="300px"
+              pinnedMeetLink={meetLink}
+              onSetMeetLink={onSetMeetLink}
+              canSetMeetLink={isLeader}
             />
           </CardContent>
         )}
@@ -418,8 +426,8 @@ export function TopicApprovalSection({
           <DialogHeader>
             <DialogTitle>Request Revision</DialogTitle>
             <DialogDescription>
-              Provide feedback on what changes or improvements you&apos;d like to see
-              in this topic.
+              Provide feedback on what changes or improvements you&apos;d like
+              to see in this topic.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">

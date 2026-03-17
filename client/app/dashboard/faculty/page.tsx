@@ -18,7 +18,7 @@ import { TopicApprovalSection } from "@/components/topic-approval-section";
 import { ReviewSection } from "@/components/review-section";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
-import { 
+import {
   mentorAllocationApi,
   groupApi,
   projectTopicsApi,
@@ -57,12 +57,17 @@ export default function FacultyDashboard() {
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [topics, setTopics] = useState<ProjectTopic[]>([]);
   const [topicMessages, setTopicMessages] = useState<TopicMessage[]>([]);
-  const [review1Session, setReview1Session] = useState<ReviewSessionType | null>(null);
-  const [review2Session, setReview2Session] = useState<ReviewSessionType | null>(null);
-  const [finalReviewSession, setFinalReviewSession] = useState<ReviewSessionType | null>(null);
+  const [review1Session, setReview1Session] =
+    useState<ReviewSessionType | null>(null);
+  const [review2Session, setReview2Session] =
+    useState<ReviewSessionType | null>(null);
+  const [finalReviewSession, setFinalReviewSession] =
+    useState<ReviewSessionType | null>(null);
   const [review1Messages, setReview1Messages] = useState<ReviewMessage[]>([]);
   const [review2Messages, setReview2Messages] = useState<ReviewMessage[]>([]);
-  const [finalReviewMessages, setFinalReviewMessages] = useState<ReviewMessage[]>([]);
+  const [finalReviewMessages, setFinalReviewMessages] = useState<
+    ReviewMessage[]
+  >([]);
   const [review1RolledOut, setReview1RolledOut] = useState(false);
   const [review2RolledOut, setReview2RolledOut] = useState(false);
   const [finalReviewRolledOut, setFinalReviewRolledOut] = useState(false);
@@ -70,7 +75,7 @@ export default function FacultyDashboard() {
   useEffect(() => {
     // Wait for auth to finish loading
     if (authLoading) return;
-    
+
     if (!user || !profile) {
       router.push("/auth/login");
       return;
@@ -100,19 +105,21 @@ export default function FacultyDashboard() {
       setAllocations(mentorAllocations);
 
       // Build team progress from accepted allocations
-      const acceptedAllocations = mentorAllocations.filter(a => a.status === "accepted");
+      const acceptedAllocations = mentorAllocations.filter(
+        (a) => a.status === "accepted",
+      );
       const progress: TeamProgress[] = [];
 
       // Load review rollouts once
       let review1Rolled = false;
       let review2Rolled = false;
       let finalReviewRolled = false;
-      
+
       try {
         const r1 = await reviewsApi.getRollout("review_1");
         const r2 = await reviewsApi.getRollout("review_2");
         const fr = await reviewsApi.getRollout("final_review");
-        
+
         review1Rolled = !!r1?.isActive;
         review2Rolled = !!r2?.isActive;
         finalReviewRolled = !!fr?.isActive;
@@ -124,21 +131,33 @@ export default function FacultyDashboard() {
         if (!allocation.group) continue;
 
         // Get topics for this group
-        const topics = await projectTopicsApi.getTopicsByGroupId(allocation.group.id).catch(() => []);
-        const approvedTopic = topics.find(t => t.status === "approved");
+        const topics = await projectTopicsApi
+          .getTopicsByGroupId(allocation.group.id)
+          .catch(() => []);
+        const approvedTopic = topics.find((t) => t.status === "approved");
 
         // Get review sessions for this group
         const [r1Session, r2Session, frSession] = await Promise.all([
-          reviewsApi.getSessionByGroupId("review_1", allocation.group.id).catch(() => null),
-          reviewsApi.getSessionByGroupId("review_2", allocation.group.id).catch(() => null),
-          reviewsApi.getSessionByGroupId("final_review", allocation.group.id).catch(() => null),
+          reviewsApi
+            .getSessionByGroupId("review_1", allocation.group.id)
+            .catch(() => null),
+          reviewsApi
+            .getSessionByGroupId("review_2", allocation.group.id)
+            .catch(() => null),
+          reviewsApi
+            .getSessionByGroupId("final_review", allocation.group.id)
+            .catch(() => null),
         ]);
 
         progress.push({
           groupId: allocation.group.id,
           groupDisplayId: allocation.group.groupId,
           topicApproval: {
-            status: approvedTopic ? "approved" : topics.length > 0 ? "pending" : "not_started",
+            status: approvedTopic
+              ? "approved"
+              : topics.length > 0
+                ? "pending"
+                : "not_started",
             approvedTopic: approvedTopic?.title,
             totalTopicsSubmitted: topics.length,
           },
@@ -167,90 +186,106 @@ export default function FacultyDashboard() {
     }
   }, [profile, showToast]);
 
-  const loadTeamData = useCallback(async (teamProg: TeamProgress) => {
-    try {
-      const group = await groupApi.getById(teamProg.groupId);
-      setSelectedGroup(group);
+  const loadTeamData = useCallback(
+    async (teamProg: TeamProgress) => {
+      try {
+        const group = await groupApi.getById(teamProg.groupId);
+        setSelectedGroup(group);
 
-      if (group) {
-        // Load topics and messages via API
-        const [topicsData, messagesData] = await Promise.all([
-          projectTopicsApi.getTopicsByGroupId(group.id),
-          projectTopicsApi.getMessagesByGroupId(group.id),
-        ]);
-        
-        console.log('Loaded team data:', { 
-          groupId: group.id, 
-          topicsCount: topicsData.length, 
-          topics: topicsData,
-          messagesCount: messagesData.length 
-        });
-        
-        setTopics(topicsData);
-        setTopicMessages(messagesData);
-
-        // Load review rollouts
-        try {
-          const review1Rollout = await reviewsApi.getRollout("review_1");
-          const review2Rollout = await reviewsApi.getRollout("review_2");
-          const finalReviewRollout = await reviewsApi.getRollout("final_review");
-
-          setReview1RolledOut(!!review1Rollout?.isActive);
-          setReview2RolledOut(!!review2Rollout?.isActive);
-          setFinalReviewRolledOut(!!finalReviewRollout?.isActive);
-        } catch (error) {
-          console.error("Failed to load review rollouts:", error);
-          setReview1RolledOut(false);
-          setReview2RolledOut(false);
-          setFinalReviewRolledOut(false);
-        }
-        
-        // Load review sessions for this group
-        try {
-          const [r1Session, r2Session, frSession] = await Promise.all([
-            reviewsApi.getSessionByGroupId("review_1", group.id).catch(() => null),
-            reviewsApi.getSessionByGroupId("review_2", group.id).catch(() => null),
-            reviewsApi.getSessionByGroupId("final_review", group.id).catch(() => null),
+        if (group) {
+          // Load topics and messages via API
+          const [topicsData, messagesData] = await Promise.all([
+            projectTopicsApi.getTopicsByGroupId(group.id),
+            projectTopicsApi.getMessagesByGroupId(group.id),
           ]);
-          
-          setReview1Session(r1Session);
-          setReview2Session(r2Session);
-          setFinalReviewSession(frSession);
-          
-          // Load messages for each session
-          if (r1Session) {
-            const msgs = await reviewsApi.getMessagesBySession(r1Session.id).catch(() => []);
-            setReview1Messages(msgs);
-          } else {
+
+          console.log("Loaded team data:", {
+            groupId: group.id,
+            topicsCount: topicsData.length,
+            topics: topicsData,
+            messagesCount: messagesData.length,
+          });
+
+          setTopics(topicsData);
+          setTopicMessages(messagesData);
+
+          // Load review rollouts
+          try {
+            const review1Rollout = await reviewsApi.getRollout("review_1");
+            const review2Rollout = await reviewsApi.getRollout("review_2");
+            const finalReviewRollout =
+              await reviewsApi.getRollout("final_review");
+
+            setReview1RolledOut(!!review1Rollout?.isActive);
+            setReview2RolledOut(!!review2Rollout?.isActive);
+            setFinalReviewRolledOut(!!finalReviewRollout?.isActive);
+          } catch (error) {
+            console.error("Failed to load review rollouts:", error);
+            setReview1RolledOut(false);
+            setReview2RolledOut(false);
+            setFinalReviewRolledOut(false);
+          }
+
+          // Load review sessions for this group
+          try {
+            const [r1Session, r2Session, frSession] = await Promise.all([
+              reviewsApi
+                .getSessionByGroupId("review_1", group.id)
+                .catch(() => null),
+              reviewsApi
+                .getSessionByGroupId("review_2", group.id)
+                .catch(() => null),
+              reviewsApi
+                .getSessionByGroupId("final_review", group.id)
+                .catch(() => null),
+            ]);
+
+            setReview1Session(r1Session);
+            setReview2Session(r2Session);
+            setFinalReviewSession(frSession);
+
+            // Load messages for each session
+            if (r1Session) {
+              const msgs = await reviewsApi
+                .getMessagesBySession(r1Session.id)
+                .catch(() => []);
+              setReview1Messages(msgs);
+            } else {
+              setReview1Messages([]);
+            }
+            if (r2Session) {
+              const msgs = await reviewsApi
+                .getMessagesBySession(r2Session.id)
+                .catch(() => []);
+              setReview2Messages(msgs);
+            } else {
+              setReview2Messages([]);
+            }
+            if (frSession) {
+              const msgs = await reviewsApi
+                .getMessagesBySession(frSession.id)
+                .catch(() => []);
+              setFinalReviewMessages(msgs);
+            } else {
+              setFinalReviewMessages([]);
+            }
+          } catch (error) {
+            console.error("Failed to load review sessions:", error);
+            setReview1Session(null);
+            setReview2Session(null);
+            setFinalReviewSession(null);
             setReview1Messages([]);
-          }
-          if (r2Session) {
-            const msgs = await reviewsApi.getMessagesBySession(r2Session.id).catch(() => []);
-            setReview2Messages(msgs);
-          } else {
             setReview2Messages([]);
-          }
-          if (frSession) {
-            const msgs = await reviewsApi.getMessagesBySession(frSession.id).catch(() => []);
-            setFinalReviewMessages(msgs);
-          } else {
             setFinalReviewMessages([]);
           }
-        } catch (error) {
-          console.error("Failed to load review sessions:", error);
-          setReview1Session(null);
-          setReview2Session(null);
-          setFinalReviewSession(null);
-          setReview1Messages([]);
-          setReview2Messages([]);
-          setFinalReviewMessages([]);
         }
+      } catch (error) {
+        console.error("Failed to load team data:", error);
+        showToast("Failed to load team data", "error");
       }
-    } catch (error) {
-      console.error("Failed to load team data:", error);
-      showToast("Failed to load team data", "error");
-    }
-  }, [showToast]);
+    },
+    [showToast],
+  );
 
   const openTeamDialog = (team: TeamProgress) => {
     setSelectedTeam(team);
@@ -359,7 +394,7 @@ export default function FacultyDashboard() {
   const handleSubmitProgress = (
     reviewType: ReviewType,
     percentage: number,
-    description: string
+    description: string,
   ) => {
     // Faculty don't submit progress - students do
     showToast("Only students can submit progress", "error");
@@ -368,26 +403,29 @@ export default function FacultyDashboard() {
   const handleUpdateProgress = (
     reviewType: ReviewType,
     percentage: number,
-    description: string
+    description: string,
   ) => {
     // Faculty don't update progress - students do
     showToast("Only students can update progress", "error");
   };
 
-  const handleSubmitFeedback = async (reviewType: ReviewType, feedback: string) => {
+  const handleSubmitFeedback = async (
+    reviewType: ReviewType,
+    feedback: string,
+  ) => {
     if (!selectedGroup || !profile) return;
-    
+
     // Get the appropriate session based on review type
     let session: ReviewSessionType | null = null;
     if (reviewType === "review_1") session = review1Session;
     else if (reviewType === "review_2") session = review2Session;
     else if (reviewType === "final_review") session = finalReviewSession;
-    
+
     if (!session?.id) {
       showToast("Review session not found", "error");
       return;
     }
-    
+
     try {
       await reviewsApi.submitFeedback(session.id, feedback);
       showToast("Feedback submitted!", "success");
@@ -400,18 +438,18 @@ export default function FacultyDashboard() {
 
   const handleMarkComplete = async (reviewType: ReviewType) => {
     if (!selectedGroup) return;
-    
+
     // Get the appropriate session based on review type
     let session: ReviewSessionType | null = null;
     if (reviewType === "review_1") session = review1Session;
     else if (reviewType === "review_2") session = review2Session;
     else if (reviewType === "final_review") session = finalReviewSession;
-    
+
     if (!session?.id) {
       showToast("Review session not found", "error");
       return;
     }
-    
+
     try {
       await reviewsApi.markComplete(session.id);
       showToast("Review marked complete!", "success");
@@ -425,21 +463,24 @@ export default function FacultyDashboard() {
   const handleSendReviewMessage = async (
     reviewType: ReviewType,
     content: string,
-    links?: string[]
+    links?: string[],
   ) => {
     if (!selectedGroup || !profile) return;
-    
+
     // Get the appropriate session based on review type
     let session: ReviewSessionType | null = null;
     if (reviewType === "review_1") session = review1Session;
     else if (reviewType === "review_2") session = review2Session;
     else if (reviewType === "final_review") session = finalReviewSession;
-    
+
     if (!session?.id) {
-      showToast("Students haven't submitted progress for this review yet. You can send a message in the Topic Approval chat to ping them.", "error");
+      showToast(
+        "Students haven't submitted progress for this review yet. You can send a message in the Topic Approval chat to ping them.",
+        "error",
+      );
       return;
     }
-    
+
     try {
       await reviewsApi.addMessage({
         sessionId: session.id,
@@ -456,7 +497,9 @@ export default function FacultyDashboard() {
   const hasApprovedTopic = topics.some((t) => t.status === "approved");
 
   const getPreferenceLabel = (rank: number) => {
-    return ["1st Choice", "2nd Choice", "3rd Choice"][rank - 1] || `${rank}th Choice`;
+    return (
+      ["1st Choice", "2nd Choice", "3rd Choice"][rank - 1] || `${rank}th Choice`
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -563,7 +606,10 @@ export default function FacultyDashboard() {
                       </p>
                       <div className="space-y-1">
                         {allocation.members?.map((member) => (
-                          <div key={member.id} className="text-sm text-gray-600">
+                          <div
+                            key={member.id}
+                            className="text-sm text-gray-600"
+                          >
                             • {member.name} ({member.rollNumber})
                           </div>
                         ))}
@@ -620,8 +666,8 @@ export default function FacultyDashboard() {
                             team.topicApproval.status === "approved"
                               ? "success"
                               : team.topicApproval.totalTopicsSubmitted > 0
-                              ? "warning"
-                              : "outline"
+                                ? "warning"
+                                : "outline"
                           }
                           className="text-xs"
                         >
@@ -631,8 +677,8 @@ export default function FacultyDashboard() {
                           {team.topicApproval.status === "approved"
                             ? "✓"
                             : team.topicApproval.totalTopicsSubmitted > 0
-                            ? `${team.topicApproval.totalTopicsSubmitted} pending`
-                            : "—"}
+                              ? `${team.topicApproval.totalTopicsSubmitted} pending`
+                              : "—"}
                         </p>
                       </div>
                       <div className="text-center">
@@ -641,8 +687,8 @@ export default function FacultyDashboard() {
                             team.review1.status === "completed"
                               ? "success"
                               : team.review1.status !== "not_started"
-                              ? "warning"
-                              : "outline"
+                                ? "warning"
+                                : "outline"
                           }
                           className="text-xs"
                         >
@@ -652,10 +698,10 @@ export default function FacultyDashboard() {
                           {team.review1.status === "completed"
                             ? "✓"
                             : team.review1.progressPercentage
-                            ? `${team.review1.progressPercentage}%`
-                            : team.review1.isRolledOut
-                            ? "0%"
-                            : "🔒"}
+                              ? `${team.review1.progressPercentage}%`
+                              : team.review1.isRolledOut
+                                ? "0%"
+                                : "🔒"}
                         </p>
                       </div>
                       <div className="text-center">
@@ -664,8 +710,8 @@ export default function FacultyDashboard() {
                             team.review2.status === "completed"
                               ? "success"
                               : team.review2.status !== "not_started"
-                              ? "warning"
-                              : "outline"
+                                ? "warning"
+                                : "outline"
                           }
                           className="text-xs"
                         >
@@ -675,10 +721,10 @@ export default function FacultyDashboard() {
                           {team.review2.status === "completed"
                             ? "✓"
                             : team.review2.progressPercentage
-                            ? `${team.review2.progressPercentage}%`
-                            : team.review2.isRolledOut
-                            ? "0%"
-                            : "🔒"}
+                              ? `${team.review2.progressPercentage}%`
+                              : team.review2.isRolledOut
+                                ? "0%"
+                                : "🔒"}
                         </p>
                       </div>
                       <div className="text-center">
@@ -687,8 +733,8 @@ export default function FacultyDashboard() {
                             team.finalReview.status === "completed"
                               ? "success"
                               : team.finalReview.status !== "not_started"
-                              ? "warning"
-                              : "outline"
+                                ? "warning"
+                                : "outline"
                           }
                           className="text-xs"
                         >
@@ -698,10 +744,10 @@ export default function FacultyDashboard() {
                           {team.finalReview.status === "completed"
                             ? "✓"
                             : team.finalReview.progressPercentage
-                            ? `${team.finalReview.progressPercentage}%`
-                            : team.finalReview.isRolledOut
-                            ? "0%"
-                            : "🔒"}
+                              ? `${team.finalReview.progressPercentage}%`
+                              : team.finalReview.isRolledOut
+                                ? "0%"
+                                : "🔒"}
                         </p>
                       </div>
                     </div>
@@ -716,7 +762,8 @@ export default function FacultyDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>
-              Pending Requests {pendingRequests.length > 0 && `(${pendingRequests.length})`}
+              Pending Requests{" "}
+              {pendingRequests.length > 0 && `(${pendingRequests.length})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -748,7 +795,7 @@ export default function FacultyDashboard() {
                       <div className="text-right">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                            allocation.status
+                            allocation.status,
                           )}`}
                         >
                           {allocation.status.charAt(0).toUpperCase() +
@@ -766,7 +813,10 @@ export default function FacultyDashboard() {
                       </p>
                       <div className="space-y-1">
                         {allocation.members?.map((member) => (
-                          <div key={member.id} className="text-sm text-gray-600">
+                          <div
+                            key={member.id}
+                            className="text-sm text-gray-600"
+                          >
                             • {member.name} ({member.rollNumber})
                           </div>
                         ))}
@@ -807,9 +857,7 @@ export default function FacultyDashboard() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>
-                {selectedTeam?.groupDisplayId} - Project Progress
-              </span>
+              <span>{selectedTeam?.groupDisplayId} - Project Progress</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -831,13 +879,17 @@ export default function FacultyDashboard() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="review2"
-                  disabled={!hasApprovedTopic || review1Session?.status !== "completed"}
+                  disabled={
+                    !hasApprovedTopic || review1Session?.status !== "completed"
+                  }
                 >
                   R2
                 </TabsTrigger>
                 <TabsTrigger
                   value="final"
-                  disabled={!hasApprovedTopic || review2Session?.status !== "completed"}
+                  disabled={
+                    !hasApprovedTopic || review2Session?.status !== "completed"
+                  }
                 >
                   Final
                 </TabsTrigger>
@@ -857,6 +909,7 @@ export default function FacultyDashboard() {
                   onRejectTopic={handleRejectTopic}
                   onRequestRevision={handleRequestRevision}
                   onSendMessage={handleSendTopicMessage}
+                  meetLink={selectedGroup.meetLink ?? undefined}
                 />
               </TabsContent>
 
@@ -871,11 +924,18 @@ export default function FacultyDashboard() {
                   isRolledOut={review1RolledOut}
                   isUnlocked={hasApprovedTopic}
                   isLeader={false}
-                  onSubmitProgress={(p, d) => handleSubmitProgress("review_1", p, d)}
-                  onUpdateProgress={(p, d) => handleUpdateProgress("review_1", p, d)}
+                  onSubmitProgress={(p, d) =>
+                    handleSubmitProgress("review_1", p, d)
+                  }
+                  onUpdateProgress={(p, d) =>
+                    handleUpdateProgress("review_1", p, d)
+                  }
                   onSubmitFeedback={(f) => handleSubmitFeedback("review_1", f)}
-                  onSendMessage={(c, l) => handleSendReviewMessage("review_1", c, l)}
+                  onSendMessage={(c, l) =>
+                    handleSendReviewMessage("review_1", c, l)
+                  }
                   onMarkComplete={() => handleMarkComplete("review_1")}
+                  meetLink={review1Session?.meetLink ?? undefined}
                 />
               </TabsContent>
 
@@ -890,11 +950,18 @@ export default function FacultyDashboard() {
                   isRolledOut={review2RolledOut}
                   isUnlocked={review1Session?.status === "completed"}
                   isLeader={false}
-                  onSubmitProgress={(p, d) => handleSubmitProgress("review_2", p, d)}
-                  onUpdateProgress={(p, d) => handleUpdateProgress("review_2", p, d)}
+                  onSubmitProgress={(p, d) =>
+                    handleSubmitProgress("review_2", p, d)
+                  }
+                  onUpdateProgress={(p, d) =>
+                    handleUpdateProgress("review_2", p, d)
+                  }
                   onSubmitFeedback={(f) => handleSubmitFeedback("review_2", f)}
-                  onSendMessage={(c, l) => handleSendReviewMessage("review_2", c, l)}
+                  onSendMessage={(c, l) =>
+                    handleSendReviewMessage("review_2", c, l)
+                  }
                   onMarkComplete={() => handleMarkComplete("review_2")}
+                  meetLink={review2Session?.meetLink ?? undefined}
                 />
               </TabsContent>
 
@@ -909,11 +976,20 @@ export default function FacultyDashboard() {
                   isRolledOut={finalReviewRolledOut}
                   isUnlocked={review2Session?.status === "completed"}
                   isLeader={false}
-                  onSubmitProgress={(p, d) => handleSubmitProgress("final_review", p, d)}
-                  onUpdateProgress={(p, d) => handleUpdateProgress("final_review", p, d)}
-                  onSubmitFeedback={(f) => handleSubmitFeedback("final_review", f)}
-                  onSendMessage={(c, l) => handleSendReviewMessage("final_review", c, l)}
+                  onSubmitProgress={(p, d) =>
+                    handleSubmitProgress("final_review", p, d)
+                  }
+                  onUpdateProgress={(p, d) =>
+                    handleUpdateProgress("final_review", p, d)
+                  }
+                  onSubmitFeedback={(f) =>
+                    handleSubmitFeedback("final_review", f)
+                  }
+                  onSendMessage={(c, l) =>
+                    handleSendReviewMessage("final_review", c, l)
+                  }
                   onMarkComplete={() => handleMarkComplete("final_review")}
+                  meetLink={finalReviewSession?.meetLink ?? undefined}
                 />
               </TabsContent>
             </Tabs>
@@ -923,4 +999,3 @@ export default function FacultyDashboard() {
     </DashboardLayout>
   );
 }
-

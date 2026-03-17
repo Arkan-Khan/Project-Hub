@@ -24,11 +24,12 @@ export default function OnboardingPage() {
   const [rollNumber, setRollNumber] = useState("");
   const [semester, setSemester] = useState("1");
   const [accessCode, setAccessCode] = useState("");
+  const [domains, setDomains] = useState("");
 
   useEffect(() => {
     // Wait for auth to finish loading
     if (authLoading) return;
-    
+
     if (!user) {
       router.push("/auth/login");
       return;
@@ -76,6 +77,12 @@ export default function OnboardingPage() {
         profileData.accessCode = accessCode;
       }
 
+      if (role === "faculty" || role === "super_admin") {
+        if (domains.trim()) {
+          profileData.domains = domains.trim();
+        }
+      }
+
       await profileApi.create(profileData);
       await refreshAuth();
       showToast("Profile created successfully!", "success");
@@ -118,7 +125,9 @@ export default function OnboardingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Email</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Email
+                  </label>
                   <Input type="email" value={user.email} disabled />
                 </div>
               </div>
@@ -130,7 +139,9 @@ export default function OnboardingPage() {
                   </label>
                   <Select
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value as Department)}
+                    onChange={(e) =>
+                      setDepartment(e.target.value as Department)
+                    }
                     required
                   >
                     <option value="IT">Information Technology (IT)</option>
@@ -154,7 +165,9 @@ export default function OnboardingPage() {
                   >
                     <option value="student">Student</option>
                     <option value="faculty">Faculty (Mentor)</option>
-                    <option value="super_admin">Super Admin (Coordinator)</option>
+                    <option value="super_admin">
+                      Super Admin (Coordinator)
+                    </option>
                   </Select>
                 </div>
               </div>
@@ -211,6 +224,23 @@ export default function OnboardingPage() {
                 </div>
               )}
 
+              {(role === "faculty" || role === "super_admin") && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Domain(s)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. AI, Web Dev, CyberSec"
+                    value={domains}
+                    onChange={(e) => setDomains(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter your areas of expertise, separated by commas
+                  </p>
+                </div>
+              )}
+
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating profile..." : "Complete Setup"}
               </Button>
@@ -221,4 +251,3 @@ export default function OnboardingPage() {
     </div>
   );
 }
-

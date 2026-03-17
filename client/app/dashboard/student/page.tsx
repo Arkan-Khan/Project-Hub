@@ -35,13 +35,14 @@ export default function StudentDashboard() {
   const [mentorStatus, setMentorStatus] = useState<{
     mentorName: string;
     status: string;
+    currentPriority?: number;
   } | null>(null);
   const [hasApprovedTopic, setHasApprovedTopic] = useState(false);
 
   useEffect(() => {
     // Wait for auth to finish loading
     if (authLoading) return;
-    
+
     if (!user || !profile) {
       router.push("/auth/login");
       return;
@@ -63,7 +64,7 @@ export default function StudentDashboard() {
       setGroup(userGroup);
 
       if (userGroup) {
-        const groupMembers = userGroup.members.map(m => m.profile);
+        const groupMembers = userGroup.members.map((m) => m.profile);
         setMembers(groupMembers);
 
         // Check if mentor form is active
@@ -76,28 +77,29 @@ export default function StudentDashboard() {
 
         // Check mentor allocation status
         const status = await mentorAllocationApi.getStatus();
-        if (status.status === 'accepted' && status.mentorName) {
+        if (status.status === "accepted" && status.mentorName) {
           setMentorStatus({
             mentorName: status.mentorName,
-            status: 'Accepted',
+            status: "Accepted",
           });
-        } else if (status.status === 'pending') {
+        } else if (status.status === "pending") {
           setMentorStatus({
-            mentorName: '',
-            status: 'Pending',
+            mentorName: "",
+            status: "Pending",
+            currentPriority: status.currentPriority,
           });
         }
-        
+
         // Check if topic is approved
         try {
           const topics = await projectTopicsApi.getMyGroupTopics();
-          setHasApprovedTopic(topics.some((t) => t.status === 'approved'));
+          setHasApprovedTopic(topics.some((t) => t.status === "approved"));
         } catch (error) {
-          console.error('Failed to load topics:', error);
+          console.error("Failed to load topics:", error);
         }
       }
     } catch (error: any) {
-      console.error('Failed to load group data:', error);
+      console.error("Failed to load group data:", error);
     }
   };
 
@@ -185,7 +187,9 @@ export default function StudentDashboard() {
                       <Input
                         placeholder="Enter Team Code (e.g., A7DXQ)"
                         value={teamCodeInput}
-                        onChange={(e) => setTeamCodeInput(e.target.value.toUpperCase())}
+                        onChange={(e) =>
+                          setTeamCodeInput(e.target.value.toUpperCase())
+                        }
                         maxLength={5}
                       />
                       <div className="flex gap-2">
@@ -247,7 +251,9 @@ export default function StudentDashboard() {
                       >
                         <div>
                           <p className="font-medium">{member.name}</p>
-                          <p className="text-sm text-gray-600">{member.email}</p>
+                          <p className="text-sm text-gray-600">
+                            {member.email}
+                          </p>
                         </div>
                         {member.id === group.createdBy && (
                           <span className="px-2 py-1 bg-accent/20 text-accent text-xs font-medium rounded">
@@ -262,8 +268,8 @@ export default function StudentDashboard() {
                 {!group.isFull && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <p className="text-sm text-blue-900">
-                      <strong>Share Team Code:</strong> {group.teamCode} with your
-                      teammates to let them join
+                      <strong>Share Team Code:</strong> {group.teamCode} with
+                      your teammates to let them join
                     </p>
                   </div>
                 )}
@@ -300,6 +306,18 @@ export default function StudentDashboard() {
                               </p>
                             </>
                           )}
+                          {mentorStatus.status === "Pending" &&
+                            mentorStatus.currentPriority && (
+                              <p className="text-sm text-blue-700 mt-2">
+                                Waiting for response from your{" "}
+                                {mentorStatus.currentPriority === 1
+                                  ? "1st"
+                                  : mentorStatus.currentPriority === 2
+                                    ? "2nd"
+                                    : "3rd"}{" "}
+                                choice mentor
+                              </p>
+                            )}
                         </div>
                       )}
                     </div>
@@ -321,8 +339,8 @@ export default function StudentDashboard() {
                   ) : (
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-md">
                       <p className="text-amber-900">
-                        Only the group leader can submit mentor preferences. Please
-                        wait for your leader to complete the form.
+                        Only the group leader can submit mentor preferences.
+                        Please wait for your leader to complete the form.
                       </p>
                     </div>
                   )}
@@ -342,27 +360,36 @@ export default function StudentDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     <p className="text-sm text-gray-600">
-                      Your mentor has been assigned! Now you can start working on your project.
-                      Submit your topic ideas and track your progress through reviews.
+                      Your mentor has been assigned! Now you can start working
+                      on your project. Submit your topic ideas and track your
+                      progress through reviews.
                     </p>
-                    
+
                     <div className="grid grid-cols-2 gap-3">
-                      <div className={`p-3 rounded-md border ${hasApprovedTopic ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                      <div
+                        className={`p-3 rounded-md border ${hasApprovedTopic ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}
+                      >
                         <p className="text-xs text-gray-600">Topic Approval</p>
-                        <p className={`font-medium ${hasApprovedTopic ? 'text-green-700' : 'text-amber-700'}`}>
-                          {hasApprovedTopic ? '✓ Approved' : 'Pending'}
+                        <p
+                          className={`font-medium ${hasApprovedTopic ? "text-green-700" : "text-amber-700"}`}
+                        >
+                          {hasApprovedTopic ? "✓ Approved" : "Pending"}
                         </p>
                       </div>
                       <div className="p-3 rounded-md border bg-gray-50 border-gray-200">
                         <p className="text-xs text-gray-600">Reviews</p>
                         <p className="font-medium text-gray-700">
-                          {hasApprovedTopic ? 'In Progress' : 'After Topic Approval'}
+                          {hasApprovedTopic
+                            ? "In Progress"
+                            : "After Topic Approval"}
                         </p>
                       </div>
                     </div>
 
                     <Button
-                      onClick={() => router.push("/dashboard/student/project-progress")}
+                      onClick={() =>
+                        router.push("/dashboard/student/project-progress")
+                      }
                       className="w-full"
                     >
                       <ClipboardList className="h-4 w-4 mr-2" />
@@ -378,4 +405,3 @@ export default function StudentDashboard() {
     </DashboardLayout>
   );
 }
-

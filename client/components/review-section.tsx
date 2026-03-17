@@ -26,7 +26,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from "./ui/dialog";
-import { ReviewSession, ReviewStatus, ReviewMessage, ReviewType } from "@/types";
+import {
+  ReviewSession,
+  ReviewStatus,
+  ReviewMessage,
+  ReviewType,
+} from "@/types";
 
 interface ReviewSectionProps {
   reviewType: ReviewType;
@@ -43,6 +48,8 @@ interface ReviewSectionProps {
   onSubmitFeedback: (feedback: string) => void;
   onSendMessage: (content: string, links?: string[]) => void;
   onMarkComplete: () => void;
+  meetLink?: string;
+  onSetMeetLink?: (link: string) => void;
 }
 
 function getReviewTitle(type: ReviewType): string {
@@ -161,14 +168,16 @@ export function ReviewSection({
   onSubmitFeedback,
   onSendMessage,
   onMarkComplete,
+  meetLink,
+  onSetMeetLink,
 }: ReviewSectionProps) {
   const [showSubmitDialog, setShowSubmitDialog] = React.useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = React.useState(false);
   const [percentage, setPercentage] = React.useState(
-    session?.progressPercentage || 0
+    session?.progressPercentage || 0,
   );
   const [description, setDescription] = React.useState(
-    session?.progressDescription || ""
+    session?.progressDescription || "",
   );
   const [feedback, setFeedback] = React.useState("");
   const [showChat, setShowChat] = React.useState(true);
@@ -252,8 +261,8 @@ export function ReviewSection({
           session?.status === "completed"
             ? "bg-green-50 border-green-200"
             : session?.status === "feedback_given"
-            ? "bg-blue-50 border-blue-200"
-            : "bg-gray-50 border-gray-200"
+              ? "bg-blue-50 border-blue-200"
+              : "bg-gray-50 border-gray-200"
         }`}
       >
         <div className="flex items-center justify-between">
@@ -263,8 +272,8 @@ export function ReviewSection({
                 session?.status === "completed"
                   ? "text-green-600"
                   : session?.status === "feedback_given"
-                  ? "text-blue-600"
-                  : "text-gray-600"
+                    ? "text-blue-600"
+                    : "text-gray-600"
               }`}
             />
             <span className="font-medium">{title}</span>
@@ -280,23 +289,27 @@ export function ReviewSection({
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Progress Update</CardTitle>
-            {currentUserRole === "student" && isLeader && session?.status !== "completed" && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  setPercentage(session?.progressPercentage || 0);
-                  setDescription(session?.progressDescription || "");
-                  setShowSubmitDialog(true);
-                }}
-              >
-                {session ? "Update Progress" : "Submit Progress"}
-              </Button>
-            )}
-            {currentUserRole === "faculty" && session && session.status === "submitted" && (
-              <Button size="sm" onClick={() => setShowFeedbackDialog(true)}>
-                Add Feedback
-              </Button>
-            )}
+            {currentUserRole === "student" &&
+              isLeader &&
+              session?.status !== "completed" && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setPercentage(session?.progressPercentage || 0);
+                    setDescription(session?.progressDescription || "");
+                    setShowSubmitDialog(true);
+                  }}
+                >
+                  {session ? "Update Progress" : "Submit Progress"}
+                </Button>
+              )}
+            {currentUserRole === "faculty" &&
+              session &&
+              session.status === "submitted" && (
+                <Button size="sm" onClick={() => setShowFeedbackDialog(true)}>
+                  Add Feedback
+                </Button>
+              )}
           </div>
         </CardHeader>
         <CardContent>
@@ -319,7 +332,10 @@ export function ReviewSection({
             <div className="space-y-4">
               {/* Progress Display */}
               <div className="flex items-center gap-4">
-                <ProgressRing percentage={session.progressPercentage} size={100} />
+                <ProgressRing
+                  percentage={session.progressPercentage}
+                  size={100}
+                />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                     <Percent className="h-4 w-4" />
@@ -343,8 +359,7 @@ export function ReviewSection({
                   {session.progressDescription}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Last updated:{" "}
-                  {new Date(session.submittedAt).toLocaleString()}
+                  Last updated: {new Date(session.submittedAt).toLocaleString()}
                 </p>
               </div>
 
@@ -410,6 +425,9 @@ export function ReviewSection({
               emptyMessage="Start the discussion about this review"
               showHeader={false}
               maxHeight="300px"
+              pinnedMeetLink={meetLink}
+              onSetMeetLink={onSetMeetLink}
+              canSetMeetLink={isLeader}
             />
           </CardContent>
         )}
@@ -449,7 +467,10 @@ export function ReviewSection({
                     value={percentage}
                     onChange={(e) =>
                       setPercentage(
-                        Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
+                        Math.min(
+                          100,
+                          Math.max(0, parseInt(e.target.value) || 0),
+                        ),
                       )
                     }
                     className="text-center"
@@ -494,8 +515,8 @@ export function ReviewSection({
           <DialogHeader>
             <DialogTitle>Add Feedback</DialogTitle>
             <DialogDescription>
-              Provide constructive feedback and suggestions for the student&apos;s
-              progress.
+              Provide constructive feedback and suggestions for the
+              student&apos;s progress.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
