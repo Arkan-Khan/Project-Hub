@@ -1,4 +1,12 @@
-import { IsString, IsEmail, IsEnum, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CreateProfileDto {
   @IsString()
@@ -26,4 +34,8 @@ export class CreateProfileDto {
   @IsOptional()
   @IsString()
   accessCode?: string;
+
+  @IsOptional()
+  @IsString()
+  domains?: string;
 }

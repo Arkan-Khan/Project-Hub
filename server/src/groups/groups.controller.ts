@@ -1,7 +1,17 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { Request as ExpressRequest } from 'express';
 import { GroupsService } from './groups.service';
 import { JoinGroupDto } from './dto/join-group.dto';
+import { SetMeetLinkDto } from './dto/set-meet-link.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Department } from '@prisma/client';
 
@@ -17,8 +27,14 @@ export class GroupsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('join')
-  async join(@Request() req: ExpressRequest, @Body() joinGroupDto: JoinGroupDto) {
-    return this.groupsService.joinByTeamCode(req.user.userId, joinGroupDto.teamCode);
+  async join(
+    @Request() req: ExpressRequest,
+    @Body() joinGroupDto: JoinGroupDto,
+  ) {
+    return this.groupsService.joinByTeamCode(
+      req.user.userId,
+      joinGroupDto.teamCode,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -49,5 +65,14 @@ export class GroupsController {
   @Get('with-details/:department')
   async getGroupsWithDetails(@Param('department') department: Department) {
     return this.groupsService.getGroupsWithDetails(department);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('meet-link')
+  async setMeetLink(
+    @Request() req: ExpressRequest,
+    @Body() dto: SetMeetLinkDto,
+  ) {
+    return this.groupsService.setMeetLink(req.user.userId, dto.meetLink);
   }
 }

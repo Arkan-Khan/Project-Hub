@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { GroupsService } from '../groups/groups.service';
@@ -35,18 +40,24 @@ export class MentorPreferencesService {
     }
 
     if (profile.role !== 'student') {
-      throw new ForbiddenException('Only students can submit mentor preferences');
+      throw new ForbiddenException(
+        'Only students can submit mentor preferences',
+      );
     }
 
     // Get user's group
     const group = await this.groupsService.getMyGroup(userId);
     if (!group) {
-      throw new BadRequestException('You must be in a group to submit preferences');
+      throw new BadRequestException(
+        'You must be in a group to submit preferences',
+      );
     }
 
     // Check if user is the group leader
     if (group.createdBy !== profile.id) {
-      throw new ForbiddenException('Only the group leader can submit preferences');
+      throw new ForbiddenException(
+        'Only the group leader can submit preferences',
+      );
     }
 
     // Validate form exists and is active
@@ -60,7 +71,9 @@ export class MentorPreferencesService {
     }
 
     if (form.department !== profile.department) {
-      throw new ForbiddenException('Cannot submit to forms from other departments');
+      throw new ForbiddenException(
+        'Cannot submit to forms from other departments',
+      );
     }
 
     // Check if preferences already submitted
@@ -74,11 +87,13 @@ export class MentorPreferencesService {
     });
 
     if (existingPreference) {
-      throw new BadRequestException('Preferences already submitted for this group');
+      throw new BadRequestException(
+        'Preferences already submitted for this group',
+      );
     }
 
     // Validate mentor choices are in the available mentors
-    const availableMentorIds = form.availableMentors.map(am => am.mentorId);
+    const availableMentorIds = form.availableMentors.map((am) => am.mentorId);
     for (const mentorId of mentorChoices) {
       if (!availableMentorIds.includes(mentorId)) {
         throw new BadRequestException('Invalid mentor selection');
@@ -99,7 +114,7 @@ export class MentorPreferencesService {
         },
       });
 
-      // Create mentor allocations (pending status)
+      // Create mentor allocations (only 1st choice is pending, others wait)
       for (let i = 0; i < mentorChoices.length; i++) {
         await tx.mentorAllocation.create({
           data: {
@@ -107,7 +122,7 @@ export class MentorPreferencesService {
             mentorId: mentorChoices[i],
             formId,
             preferenceRank: i + 1,
-            status: 'pending',
+            status: i === 0 ? 'pending' : 'waiting',
           },
         });
       }

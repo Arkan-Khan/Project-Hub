@@ -87,17 +87,17 @@ VALUES
   ('profile-student-11', 'user-student-11', 'Kate Rao', 'student11@gmail.com', 'student', 'IT', '22101A0011', 7, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
   ('profile-student-12', 'user-student-12', 'Leo Iyer', 'student12@gmail.com', 'student', 'IT', '22101A0012', 7, '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
--- Faculty Profiles
-INSERT INTO "Profile" (id, "userId", name, email, role, department, "createdAt", "updatedAt")
-VALUES 
-  ('profile-faculty-1', 'user-faculty-1', 'Prof. Rasika Ransing', 'faculty1@gmail.com', 'faculty', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('profile-faculty-2', 'user-faculty-2', 'Prof. Neha Kudu', 'faculty2@gmail.com', 'faculty', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('profile-faculty-3', 'user-faculty-3', 'Prof. Vinita Bhandiwad', 'faculty3@gmail.com', 'faculty', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+-- Faculty Profiles (with domains)
+INSERT INTO "Profile" (id, "userId", name, email, role, department, domains, "createdAt", "updatedAt")
+VALUES
+  ('profile-faculty-1', 'user-faculty-1', 'Prof. Rasika Ransing', 'faculty1@gmail.com', 'faculty', 'IT', 'AI, Machine Learning, Data Science', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-faculty-2', 'user-faculty-2', 'Prof. Neha Kudu', 'faculty2@gmail.com', 'faculty', 'IT', 'Web Development, Cloud Computing', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-faculty-3', 'user-faculty-3', 'Prof. Vinita Bhandiwad', 'faculty3@gmail.com', 'faculty', 'IT', 'Cyber Security, IoT, Blockchain', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
--- Super Admin Profile
-INSERT INTO "Profile" (id, "userId", name, email, role, department, "createdAt", "updatedAt")
-VALUES 
-  ('profile-superadmin', 'user-superadmin', 'Prof. Kanchan Dhuri', 'superadmin@gmail.com', 'super_admin', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+-- Super Admin Profile (with domains)
+INSERT INTO "Profile" (id, "userId", name, email, role, department, domains, "createdAt", "updatedAt")
+VALUES
+  ('profile-superadmin', 'user-superadmin', 'Prof. Kanchan Dhuri', 'superadmin@gmail.com', 'super_admin', 'IT', 'Software Engineering, DevOps', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
 -- =====================================================
 -- GROUP COUNTER

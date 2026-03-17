@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { Department } from '@prisma/client';
@@ -34,7 +39,9 @@ export class GroupsService {
     // Get user profile
     const profile = await this.profilesService.findByUserId(userId);
     if (!profile) {
-      throw new BadRequestException('Profile not found. Please complete onboarding first.');
+      throw new BadRequestException(
+        'Profile not found. Please complete onboarding first.',
+      );
     }
 
     if (profile.role !== 'student') {
@@ -84,7 +91,9 @@ export class GroupsService {
     // Get user profile
     const profile = await this.profilesService.findByUserId(userId);
     if (!profile) {
-      throw new BadRequestException('Profile not found. Please complete onboarding first.');
+      throw new BadRequestException(
+        'Profile not found. Please complete onboarding first.',
+      );
     }
 
     if (profile.role !== 'student') {
@@ -114,7 +123,9 @@ export class GroupsService {
 
     // Check department match
     if (group.department !== profile.department) {
-      throw new BadRequestException('Can only join groups from your department');
+      throw new BadRequestException(
+        'Can only join groups from your department',
+      );
     }
 
     // Check if group is full
@@ -232,13 +243,52 @@ export class GroupsService {
       },
     });
 
-    return groups.map(group => {
-      const acceptedAllocation = group.allocations.find(a => a.status === 'accepted');
+    return groups.map((group) => {
+      const acceptedAllocation = group.allocations.find(
+        (a) => a.status === 'accepted',
+      );
       return {
         ...group,
         hasSubmittedPreferences: group.preferences.length > 0,
-        mentorAssigned: acceptedAllocation ? acceptedAllocation.mentor.name : null,
+        mentorAssigned: acceptedAllocation
+          ? acceptedAllocation.mentor.name
+          : null,
       };
+    });
+  }
+
+  async setMeetLink(userId: string, meetLink: string) {
+    const profile = await this.profilesService.findByUserId(userId);
+    if (!profile) {
+      throw new BadRequestException('Profile not found');
+    }
+
+    if (profile.role !== 'student') {
+      throw new ForbiddenException('Only students can set meet links');
+    }
+
+    const group = await this.findByMemberId(profile.id);
+    if (!group) {
+      throw new NotFoundException('You are not in a group');
+    }
+
+    if (group.createdBy !== profile.id) {
+      throw new ForbiddenException(
+        'Only the group leader can set the meet link',
+      );
+    }
+
+    return this.prisma.group.update({
+      where: { id: group.id },
+      data: { meetLink },
+      include: {
+        members: {
+          include: {
+            profile: true,
+          },
+        },
+        creator: true,
+      },
     });
   }
 }

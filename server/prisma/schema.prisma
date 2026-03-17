@@ -48,6 +48,7 @@ model Profile {
   department Department
   rollNumber String? // For students only
   semester   Int? // For students only
+  domains    String? // Comma-separated domain tags for faculty, e.g. "AI, Web Dev, CyberSec"
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -70,6 +71,7 @@ model Group {
   department Department
   createdBy  String
   isFull     Boolean    @default(false)
+  meetLink   String? // Pinned Google Meet link for topic discussion
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -160,6 +162,7 @@ enum AllocationStatus {
   pending
   accepted
   rejected
+  waiting
 }
 
 // Counter for group serial numbers per department
@@ -258,6 +261,7 @@ model ReviewSession {
   mentorFeedback      String?      @db.Text
   feedbackGivenBy     String?
   feedbackGivenAt     DateTime?
+  meetLink            String? // Pinned Google Meet link for this review
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 

@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { GroupsService } from '../groups/groups.service';
@@ -64,7 +69,11 @@ export class ReviewsService {
   }
 
   // Submit or update progress
-  async submitProgress(userId: string, reviewType: ReviewType, submitDto: SubmitProgressDto) {
+  async submitProgress(
+    userId: string,
+    reviewType: ReviewType,
+    submitDto: SubmitProgressDto,
+  ) {
     const profile = await this.profilesService.findByUserId(userId);
     if (!profile || profile.role !== 'student') {
       throw new ForbiddenException('Only students can submit progress');
@@ -132,9 +141,16 @@ export class ReviewsService {
   }
 
   // Submit feedback
-  async submitFeedback(userId: string, sessionId: string, feedbackDto: SubmitFeedbackDto) {
+  async submitFeedback(
+    userId: string,
+    sessionId: string,
+    feedbackDto: SubmitFeedbackDto,
+  ) {
     const profile = await this.profilesService.findByUserId(userId);
-    if (!profile || (profile.role !== 'faculty' && profile.role !== 'super_admin')) {
+    if (
+      !profile ||
+      (profile.role !== 'faculty' && profile.role !== 'super_admin')
+    ) {
       throw new ForbiddenException('Only faculty can submit feedback');
     }
 
@@ -160,7 +176,10 @@ export class ReviewsService {
   // Mark review as complete
   async markComplete(userId: string, sessionId: string) {
     const profile = await this.profilesService.findByUserId(userId);
-    if (!profile || (profile.role !== 'faculty' && profile.role !== 'super_admin')) {
+    if (
+      !profile ||
+      (profile.role !== 'faculty' && profile.role !== 'super_admin')
+    ) {
       throw new ForbiddenException('Only faculty can mark reviews as complete');
     }
 
@@ -198,9 +217,16 @@ export class ReviewsService {
   }
 
   // Get review session by groupId (for faculty/admin)
-  async getSessionByGroupId(userId: string, groupId: string, reviewType: ReviewType) {
+  async getSessionByGroupId(
+    userId: string,
+    groupId: string,
+    reviewType: ReviewType,
+  ) {
     const profile = await this.profilesService.findByUserId(userId);
-    if (!profile || (profile.role !== 'faculty' && profile.role !== 'super_admin')) {
+    if (
+      !profile ||
+      (profile.role !== 'faculty' && profile.role !== 'super_admin')
+    ) {
       throw new ForbiddenException('Only faculty can access group sessions');
     }
 
@@ -258,5 +284,43 @@ export class ReviewsService {
     }
 
     return this.getMessagesBySession(session.id);
+  }
+
+  // Set meet link for a review session
+  async setMeetLink(userId: string, sessionId: string, meetLink: string) {
+    const profile = await this.profilesService.findByUserId(userId);
+    if (!profile || profile.role !== 'student') {
+      throw new ForbiddenException('Only students can set meet links');
+    }
+
+    const group = await this.groupsService.getMyGroup(userId);
+    if (!group) {
+      throw new BadRequestException('You must be in a group');
+    }
+
+    if (group.createdBy !== profile.id) {
+      throw new ForbiddenException(
+        'Only the group leader can set the meet link',
+      );
+    }
+
+    const session = await this.prisma.reviewSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Review session not found');
+    }
+
+    if (session.groupId !== group.id) {
+      throw new ForbiddenException(
+        'This session does not belong to your group',
+      );
+    }
+
+    return this.prisma.reviewSession.update({
+      where: { id: sessionId },
+      data: { meetLink },
+    });
   }
 }

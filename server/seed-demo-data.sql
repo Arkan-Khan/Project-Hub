@@ -75,17 +75,17 @@ VALUES
   ('profile-student-11', 'user-student-11', 'Kate Rao', 'student11@gmail.com', 'student', 'IT', '22101A0011', 7, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
   ('profile-student-12', 'user-student-12', 'Leo Iyer', 'student12@gmail.com', 'student', 'IT', '22101A0012', 7, '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
--- Faculty Profiles
-INSERT INTO "Profile" (id, "userId", name, email, role, department, "createdAt", "updatedAt")
-VALUES 
-  ('profile-faculty-1', 'user-faculty-1', 'Prof. Rasika Ransing', 'faculty1@gmail.com', 'faculty', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('profile-faculty-2', 'user-faculty-2', 'Prof. Neha Kudu', 'faculty2@gmail.com', 'faculty', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('profile-faculty-3', 'user-faculty-3', 'Prof. Vinita Bhandiwad', 'faculty3@gmail.com', 'faculty', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+-- Faculty Profiles (with domains)
+INSERT INTO "Profile" (id, "userId", name, email, role, department, domains, "createdAt", "updatedAt")
+VALUES
+  ('profile-faculty-1', 'user-faculty-1', 'Prof. Rasika Ransing', 'faculty1@gmail.com', 'faculty', 'IT', 'AI, Machine Learning, Data Science', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-faculty-2', 'user-faculty-2', 'Prof. Neha Kudu', 'faculty2@gmail.com', 'faculty', 'IT', 'Web Development, Cloud Computing', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-faculty-3', 'user-faculty-3', 'Prof. Vinita Bhandiwad', 'faculty3@gmail.com', 'faculty', 'IT', 'Cyber Security, IoT, Blockchain', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
--- Super Admin Profile
-INSERT INTO "Profile" (id, "userId", name, email, role, department, "createdAt", "updatedAt")
-VALUES 
-  ('profile-superadmin', 'user-superadmin', 'Prof. Kanchan Dhuri', 'superadmin@gmail.com', 'super_admin', 'IT', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+-- Super Admin Profile (with domains)
+INSERT INTO "Profile" (id, "userId", name, email, role, department, domains, "createdAt", "updatedAt")
+VALUES
+  ('profile-superadmin', 'user-superadmin', 'Prof. Kanchan Dhuri', 'superadmin@gmail.com', 'super_admin', 'IT', 'Software Engineering, DevOps', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
 -- =====================================================
 -- GROUP COUNTER
@@ -169,15 +169,36 @@ VALUES
   ('pref-4', 'group-4', 'form-1', 'profile-superadmin', 'profile-faculty-1', 'profile-faculty-2', 'profile-student-10', '2025-10-29 11:00:00');
 
 -- =====================================================
--- MENTOR ALLOCATIONS (All Accepted - Required for Topic Approval)
+-- MENTOR ALLOCATIONS (Sequential Routing - 1st choice accepted, 2nd/3rd rejected)
 -- =====================================================
 
+-- Group 1: 1st choice accepted, 2nd and 3rd auto-rejected
 INSERT INTO "MentorAllocation" (id, "groupId", "mentorId", "formId", status, "preferenceRank", "createdAt", "updatedAt")
-VALUES 
-  ('alloc-1', 'group-1', 'profile-faculty-1', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
-  ('alloc-2', 'group-2', 'profile-faculty-2', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
-  ('alloc-3', 'group-3', 'profile-faculty-3', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
-  ('alloc-4', 'group-4', 'profile-superadmin', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00');
+VALUES
+  ('alloc-1-1', 'group-1', 'profile-faculty-1', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-1-2', 'group-1', 'profile-faculty-2', 'form-1', 'rejected', 2, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-1-3', 'group-1', 'profile-faculty-3', 'form-1', 'rejected', 3, '2025-10-29 11:00:00', '2025-10-29 12:00:00');
+
+-- Group 2: 1st choice accepted, 2nd and 3rd auto-rejected
+INSERT INTO "MentorAllocation" (id, "groupId", "mentorId", "formId", status, "preferenceRank", "createdAt", "updatedAt")
+VALUES
+  ('alloc-2-1', 'group-2', 'profile-faculty-2', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-2-2', 'group-2', 'profile-faculty-3', 'form-1', 'rejected', 2, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-2-3', 'group-2', 'profile-faculty-1', 'form-1', 'rejected', 3, '2025-10-29 11:00:00', '2025-10-29 12:00:00');
+
+-- Group 3: 1st choice accepted, 2nd and 3rd auto-rejected
+INSERT INTO "MentorAllocation" (id, "groupId", "mentorId", "formId", status, "preferenceRank", "createdAt", "updatedAt")
+VALUES
+  ('alloc-3-1', 'group-3', 'profile-faculty-3', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-3-2', 'group-3', 'profile-faculty-1', 'form-1', 'rejected', 2, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-3-3', 'group-3', 'profile-faculty-2', 'form-1', 'rejected', 3, '2025-10-29 11:00:00', '2025-10-29 12:00:00');
+
+-- Group 4: 1st choice accepted, 2nd and 3rd auto-rejected
+INSERT INTO "MentorAllocation" (id, "groupId", "mentorId", "formId", status, "preferenceRank", "createdAt", "updatedAt")
+VALUES
+  ('alloc-4-1', 'group-4', 'profile-superadmin', 'form-1', 'accepted', 1, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-4-2', 'group-4', 'profile-faculty-1', 'form-1', 'rejected', 2, '2025-10-29 11:00:00', '2025-10-29 12:00:00'),
+  ('alloc-4-3', 'group-4', 'profile-faculty-2', 'form-1', 'rejected', 3, '2025-10-29 11:00:00', '2025-10-29 12:00:00');
 
 -- =====================================================
 -- PROJECT TOPICS (Empty - Ready for testing topic submission)

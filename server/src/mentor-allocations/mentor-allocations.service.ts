@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { GroupsService } from '../groups/groups.service';
@@ -22,7 +27,10 @@ export class MentorAllocationsService {
     }
 
     const allocations = await this.prisma.mentorAllocation.findMany({
-      where: { mentorId: profile.id },
+      where: {
+        mentorId: profile.id,
+        status: { not: 'waiting' },
+      },
       include: {
         group: {
           include: {
@@ -134,9 +142,28 @@ export class MentorAllocationsService {
       throw new BadRequestException('Allocation is not pending');
     }
 
-    await this.prisma.mentorAllocation.update({
-      where: { id: allocationId },
-      data: { status: 'rejected' },
+    // Reject and escalate to next priority in a transaction
+    await this.prisma.$transaction(async (tx) => {
+      await tx.mentorAllocation.update({
+        where: { id: allocationId },
+        data: { status: 'rejected' },
+      });
+
+      // Find the next waiting allocation for the same group and escalate
+      const nextWaiting = await tx.mentorAllocation.findFirst({
+        where: {
+          groupId: allocation.groupId,
+          status: 'waiting',
+        },
+        orderBy: { preferenceRank: 'asc' },
+      });
+
+      if (nextWaiting) {
+        await tx.mentorAllocation.update({
+          where: { id: nextWaiting.id },
+          data: { status: 'pending' },
+        });
+      }
     });
 
     return { message: 'Team rejected' };
@@ -184,7 +211,7 @@ export class MentorAllocationsService {
       return { status: 'not_submitted' };
     }
 
-    const acceptedAllocation = allocations.find(a => a.status === 'accepted');
+    const acceptedAllocation = allocations.find((a) => a.status === 'accepted');
     if (acceptedAllocation) {
       return {
         status: 'accepted',
@@ -193,9 +220,25 @@ export class MentorAllocationsService {
       };
     }
 
-    const pendingAllocations = allocations.filter(a => a.status === 'pending');
+    const pendingAllocations = allocations.filter(
+      (a) => a.status === 'pending',
+    );
     if (pendingAllocations.length > 0) {
-      return { status: 'pending' };
+      return {
+        status: 'pending',
+        currentPriority: pendingAllocations[0].preferenceRank,
+      };
+    }
+
+    // Check if there are still waiting allocations (shouldn't happen normally)
+    const waitingAllocations = allocations.filter(
+      (a) => a.status === 'waiting',
+    );
+    if (waitingAllocations.length > 0) {
+      return {
+        status: 'pending',
+        currentPriority: waitingAllocations[0].preferenceRank,
+      };
     }
 
     return { status: 'all_rejected' };

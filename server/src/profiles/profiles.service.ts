@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { Department, Role } from '@prisma/client';
@@ -17,7 +21,16 @@ export class ProfilesService {
   constructor(private prisma: PrismaService) {}
 
   async create(userId: string, createProfileDto: CreateProfileDto) {
-    const { name, email, role, department, rollNumber, semester, accessCode } = createProfileDto;
+    const {
+      name,
+      email,
+      role,
+      department,
+      rollNumber,
+      semester,
+      accessCode,
+      domains,
+    } = createProfileDto;
 
     // Validate access code for super admin
     if (role === 'super_admin') {
@@ -54,6 +67,8 @@ export class ProfilesService {
         department: department as Department,
         rollNumber: role === 'student' ? rollNumber : null,
         semester: role === 'student' ? semester : null,
+        domains:
+          role === 'faculty' || role === 'super_admin' ? domains || null : null,
       },
     });
   }
@@ -86,10 +101,7 @@ export class ProfilesService {
     return this.prisma.profile.findMany({
       where: {
         department,
-        OR: [
-          { role: 'faculty' },
-          { role: 'super_admin' },
-        ],
+        OR: [{ role: 'faculty' }, { role: 'super_admin' }],
       },
     });
   }
