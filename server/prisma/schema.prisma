@@ -283,3 +283,29 @@ model ReviewMessage {
 
   session ReviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
+
+// ============================================
+// Attachment Models (Supabase Storage)
+// ============================================
+
+enum AttachmentStage {
+  topic_approval
+  review_1
+  review_2
+  final_review
+}
+
+model Attachment {
+  id          String          @id @default(uuid())
+  groupId     String
+  stage       AttachmentStage
+  filename    String
+  fileUrl     String
+  fileSize    Int             // Size in bytes
+  mimeType    String
+  uploadedBy  String          // Profile ID of uploader
+  uploadedAt  DateTime        @default(now())
+  
+  @@unique([groupId, stage]) // One attachment per stage per group
+  @@index([groupId])
+}

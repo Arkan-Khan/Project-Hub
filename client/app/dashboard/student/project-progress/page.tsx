@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TopicApprovalSection } from "@/components/topic-approval-section";
 import { ReviewSection } from "@/components/review-section";
+import { AttachmentsTab } from "@/components/attachments-tab";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -15,6 +16,7 @@ import {
   mentorAllocationApi,
   projectTopicsApi,
   reviewsApi,
+  attachmentsApi,
 } from "@/lib/api";
 import {
   Group,
@@ -24,6 +26,8 @@ import {
   ReviewSession as ReviewSessionType,
   ReviewMessage,
   ReviewType,
+  Attachment,
+  AttachmentStage,
 } from "@/types";
 
 export default function ProjectProgressPage() {
@@ -57,6 +61,10 @@ export default function ProjectProgressPage() {
   const [finalReviewMessages, setFinalReviewMessages] = useState<
     ReviewMessage[]
   >([]);
+
+  // Attachments State
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!profile) return;
@@ -119,6 +127,16 @@ export default function ProjectProgressPage() {
       setReview1Messages(r1Messages);
       setReview2Messages(r2Messages);
       setFinalReviewMessages(frMessages);
+
+      // Load attachments
+      setAttachmentsLoading(true);
+      try {
+        const groupAttachments = await attachmentsApi.getMyGroupAttachments();
+        setAttachments(groupAttachments);
+      } catch (error) {
+        console.error("Error loading attachments:", error);
+      }
+      setAttachmentsLoading(false);
     } catch (error) {
       console.error("Error loading data:", error);
       showToast("Failed to load data", "error");
@@ -149,6 +167,33 @@ export default function ProjectProgressPage() {
 
   const isLeader = group && profile && group.createdBy === profile.id;
   const hasApprovedTopic = topics.some((t) => t.status === "approved");
+
+  // Attachment Handlers
+  const handleUploadAttachment = async (stage: AttachmentStage, file: File) => {
+    try {
+      await attachmentsApi.upload(stage, file);
+      showToast("File uploaded successfully!", "success");
+      // Reload attachments
+      const groupAttachments = await attachmentsApi.getMyGroupAttachments();
+      setAttachments(groupAttachments);
+    } catch (error: any) {
+      showToast(error.message || "Failed to upload file", "error");
+      throw error;
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      await attachmentsApi.delete(attachmentId);
+      showToast("Attachment deleted", "success");
+      // Reload attachments
+      const groupAttachments = await attachmentsApi.getMyGroupAttachments();
+      setAttachments(groupAttachments);
+    } catch (error: any) {
+      showToast(error.message || "Failed to delete attachment", "error");
+      throw error;
+    }
+  };
 
   // Topic Approval Handlers
   const handleSubmitTopic = async (title: string, description: string) => {
@@ -374,8 +419,8 @@ export default function ProjectProgressPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="topic">Topic Approval</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-5">
+            <TabsTrigger value="topic">Topic</TabsTrigger>
             <TabsTrigger value="review1" disabled={!hasApprovedTopic}>
               Review 1
             </TabsTrigger>
@@ -393,7 +438,10 @@ export default function ProjectProgressPage() {
                 !hasApprovedTopic || review2Session?.status !== "completed"
               }
             >
-              Final Review
+              Final
+            </TabsTrigger>
+            <TabsTrigger value="attachments">
+              Attachments
             </TabsTrigger>
           </TabsList>
 
@@ -504,6 +552,17 @@ export default function ProjectProgressPage() {
               onSetMeetLink={(link) =>
                 handleSetReviewMeetLink("final_review", link)
               }
+            />
+          </TabsContent>
+
+          {/* Attachments */}
+          <TabsContent value="attachments">
+            <AttachmentsTab
+              attachments={attachments}
+              isLeader={isLeader ?? false}
+              onUpload={handleUploadAttachment}
+              onDelete={handleDeleteAttachment}
+              loading={attachmentsLoading}
             />
           </TabsContent>
         </Tabs>

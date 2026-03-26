@@ -42,30 +42,30 @@ DELETE FROM "User";
 -- Students (12 students for 4 groups of 3)
 INSERT INTO "User" (id, email, password, "createdAt", "updatedAt")
 VALUES 
-  ('user-student-1', 'student1@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-2', 'student2@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-3', 'student3@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-4', 'student4@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-5', 'student5@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-6', 'student6@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-7', 'student7@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-8', 'student8@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-9', 'student9@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-10', 'student10@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-11', 'student11@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-student-12', 'student12@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+  ('user-student-1', 'student1@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-2', 'student2@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-3', 'student3@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-4', 'student4@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-5', 'student5@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-6', 'student6@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-7', 'student7@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-8', 'student8@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-9', 'student9@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-10', 'student10@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-11', 'student11@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-12', 'student12@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
 -- Faculty Members (3 faculty)
 INSERT INTO "User" (id, email, password, "createdAt", "updatedAt")
 VALUES 
-  ('user-faculty-1', 'faculty1@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-faculty-2', 'faculty2@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
-  ('user-faculty-3', 'faculty3@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+  ('user-faculty-1', 'faculty1@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-faculty-2', 'faculty2@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-faculty-3', 'faculty3@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
 -- Super Admin
 INSERT INTO "User" (id, email, password, "createdAt", "updatedAt")
 VALUES 
-  ('user-superadmin', 'superadmin@gmail.com', '$2a$10$VvCxRN2EX53nRW8tm5ylNeKMQMsginrrnYQLLGz5r3ldDw0COr/Za', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+  ('user-superadmin', 'superadmin@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
 
 -- =====================================================
 -- PROFILES

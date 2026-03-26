@@ -102,7 +102,7 @@ function DialogContent({ children, className = "" }: DialogContentProps) {
       {/* Content */}
       <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 p-4">
         <div
-          className={`relative bg-white rounded-lg shadow-lg border border-gray-200 max-h-[85vh] overflow-auto ${className}`}
+          className={`relative bg-white rounded-lg shadow-lg border border-gray-200 max-h-[85vh] overflow-auto p-6 ${className}`}
         >
           {/* Close button */}
           <button
@@ -127,7 +127,7 @@ function DialogHeader({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col space-y-1.5 p-6 pb-0 ${className}`}>
+    <div className={`flex flex-col space-y-1.5 mb-4 ${className}`}>
       {children}
     </div>
   );
@@ -170,7 +170,7 @@ function DialogFooter({
 }) {
   return (
     <div
-      className={`flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 p-6 pt-4 ${className}`}
+      className={`flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-6 ${className}`}
     >
       {children}
     </div>

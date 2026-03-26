@@ -466,3 +466,58 @@ export const reviewsApi = {
     });
   },
 };
+
+// ============ ADMIN API ============
+
+import {
+  MentorOverview,
+  UnassignedGroup,
+  AvailableMentor as AvailableMentorType,
+} from "@/types";
+
+export interface AllocateMentorRequest {
+  groupId: string;
+  mentorId: string;
+}
+
+export const adminApi = {
+  getMentorOverview: async (): Promise<MentorOverview[]> => {
+    return api.get<MentorOverview[]>("/admin/mentor-overview");
+  },
+
+  getUnassignedGroups: async (): Promise<UnassignedGroup[]> => {
+    return api.get<UnassignedGroup[]>("/admin/unassigned-groups");
+  },
+
+  getAvailableMentors: async (): Promise<AvailableMentorType[]> => {
+    return api.get<AvailableMentorType[]>("/admin/available-mentors");
+  },
+
+  allocateMentor: async (
+    data: AllocateMentorRequest,
+  ): Promise<{ message: string }> => {
+    return api.post<{ message: string }>("/admin/allocate-mentor", data);
+  },
+};
+
+// ============ ATTACHMENTS API ============
+
+import { Attachment, AttachmentStage } from "@/types";
+
+export const attachmentsApi = {
+  upload: async (stage: AttachmentStage, file: File): Promise<Attachment> => {
+    return api.upload<Attachment>(`/attachments/upload/${stage}`, file);
+  },
+
+  getMyGroupAttachments: async (): Promise<Attachment[]> => {
+    return api.get<Attachment[]>("/attachments/my-group");
+  },
+
+  getByGroupId: async (groupId: string): Promise<Attachment[]> => {
+    return api.get<Attachment[]>(`/attachments/group/${groupId}`);
+  },
+
+  delete: async (id: string): Promise<{ message: string }> => {
+    return api.delete<{ message: string }>(`/attachments/${id}`);
+  },
+};

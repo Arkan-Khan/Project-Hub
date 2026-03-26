@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Users, UserCheck, ClipboardList, Play, CheckCircle } from "lucide-react";
+import { FileText, Users, UserCheck, ClipboardList, Play, CheckCircle, Download, UserPlus } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { 
@@ -15,8 +16,12 @@ import {
   groupApi,
   reviewsApi,
   projectTopicsApi,
+  adminApi,
 } from "@/lib/api";
-import { MentorAllocationForm, Profile, ReviewRollout, ReviewType } from "@/types";
+import { MentorAllocationForm, Profile, ReviewRollout, ReviewType, MentorOverview, UnassignedGroup, AvailableMentor } from "@/types";
+import { MentorOverviewPanel } from "@/components/mentor-overview-panel";
+import { ManualAllocationModal } from "@/components/manual-allocation-modal";
+import { exportMentorOverviewAsCSV, exportMentorOverviewAsPDF } from "@/lib/export-utils";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -29,6 +34,14 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [groups, setGroups] = useState<any[]>([]);
   const [reviewRollouts, setReviewRollouts] = useState<ReviewRollout[]>([]);
+  
+  // New state for mentor overview and allocation
+  const [mentorOverview, setMentorOverview] = useState<MentorOverview[]>([]);
+  const [unassignedGroups, setUnassignedGroups] = useState<UnassignedGroup[]>([]);
+  const [availableMentorsForAlloc, setAvailableMentorsForAlloc] = useState<AvailableMentor[]>([]);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -116,9 +129,54 @@ export default function AdminDashboard() {
       } catch (error) {}
       
       setReviewRollouts(rollouts);
+
+      // Load mentor overview data
+      setOverviewLoading(true);
+      try {
+        const overview = await adminApi.getMentorOverview();
+        setMentorOverview(overview);
+      } catch (error) {
+        console.error('Error loading mentor overview:', error);
+      }
+      
+      // Load unassigned groups and available mentors for manual allocation
+      try {
+        const [unassigned, mentorsForAlloc] = await Promise.all([
+          adminApi.getUnassignedGroups(),
+          adminApi.getAvailableMentors(),
+        ]);
+        setUnassignedGroups(unassigned);
+        setAvailableMentorsForAlloc(mentorsForAlloc);
+      } catch (error) {
+        console.error('Error loading allocation data:', error);
+      }
+      setOverviewLoading(false);
     } catch (error: any) {
       console.error('Error loading admin data:', error);
     }
+  };
+
+  const handleManualAllocate = async (groupId: string, mentorId: string) => {
+    try {
+      await adminApi.allocateMentor({ groupId, mentorId });
+      showToast("Mentor allocated successfully!", "success");
+      await loadData();
+    } catch (error: any) {
+      showToast(error.message || "Failed to allocate mentor", "error");
+      throw error;
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!profile) return;
+    exportMentorOverviewAsCSV(mentorOverview, profile.department);
+    showToast("CSV exported successfully!", "success");
+  };
+
+  const handleExportPDF = () => {
+    if (!profile) return;
+    exportMentorOverviewAsPDF(mentorOverview, profile.department);
+    showToast("PDF exported successfully!", "success");
   };
 
   const handleToggleMentor = (mentorId: string) => {
@@ -176,8 +234,42 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout title="Super Admin Dashboard">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Navigation to Faculty View */}
-        <div className="flex justify-end">
+        {/* Top Actions Bar */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAllocationModal(true)}
+              size="sm"
+              disabled={unassignedGroups.length === 0}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Manual Allocation
+              {unassignedGroups.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {unassignedGroups.length}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportCSV}
+              size="sm"
+              disabled={mentorOverview.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              size="sm"
+              disabled={mentorOverview.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          </div>
           <Button
             variant="outline"
             onClick={() => router.push("/dashboard/faculty")}
@@ -187,19 +279,34 @@ export default function AdminDashboard() {
             View My Mentor Requests
           </Button>
         </div>
-        {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <Users className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{groups.length}</p>
-                  <p className="text-sm text-gray-600">Total Groups</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+
+        {/* Tabs for Overview vs Management */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="overview">Mentor & Group Overview</TabsTrigger>
+            <TabsTrigger value="management">Form & Review Management</TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            <MentorOverviewPanel mentors={mentorOverview} loading={overviewLoading} />
+          </TabsContent>
+
+          {/* Management Tab */}
+          <TabsContent value="management" className="space-y-6">
+            {/* Stats */}
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <Users className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">{groups.length}</p>
+                      <p className="text-sm text-gray-600">Total Groups</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -518,8 +625,18 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Manual Allocation Modal */}
+        <ManualAllocationModal
+          open={showAllocationModal}
+          onClose={() => setShowAllocationModal(false)}
+          unassignedGroups={unassignedGroups}
+          availableMentors={availableMentorsForAlloc}
+          onAllocate={handleManualAllocate}
+        />
       </div>
     </DashboardLayout>
   );
 }
-

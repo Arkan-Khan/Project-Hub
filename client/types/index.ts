@@ -184,3 +184,97 @@ export interface TeamProgress {
     isRolledOut: boolean;
   };
 }
+
+// ============================================
+// Admin Dashboard Types
+// ============================================
+
+export type TopicStatusType =
+  | "not_submitted"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "revision_requested"
+  | "submitted"
+  | "under_review";
+
+export interface MentorGroupInfo {
+  id: string;
+  groupId: string;
+  teamCode: string;
+  leaderName: string;
+  memberCount: number;
+  members: {
+    id: string;
+    name: string;
+    email: string;
+    rollNumber: string | null;
+  }[];
+  topicStatus: TopicStatusType;
+  approvedTopicTitle: string | null;
+  review1Status: ReviewStatus | null;
+  review1Progress: number | null;
+  review2Status: ReviewStatus | null;
+  review2Progress: number | null;
+  finalReviewStatus: ReviewStatus | null;
+  finalReviewProgress: number | null;
+}
+
+export interface MentorOverview {
+  id: string;
+  name: string;
+  email: string;
+  department: Department;
+  domains: string | null;
+  assignedGroups: MentorGroupInfo[];
+  totalGroups: number;
+}
+
+export interface UnassignedGroup {
+  id: string;
+  groupId: string;
+  teamCode: string;
+  leaderName: string;
+  memberCount: number;
+  members: {
+    id: string;
+    name: string;
+    email: string;
+  }[];
+  hasSubmittedPreferences: boolean;
+  pendingAllocations: {
+    mentorId: string;
+    mentorName: string;
+    preferenceRank: number;
+  }[];
+}
+
+export interface AvailableMentor {
+  id: string;
+  name: string;
+  email: string;
+  domains: string | null;
+  role: Role;
+}
+
+// ============================================
+// Attachment Types
+// ============================================
+
+export type AttachmentStage =
+  | "topic_approval"
+  | "review_1"
+  | "review_2"
+  | "final_review";
+
+export interface Attachment {
+  id: string;
+  groupId: string;
+  stage: AttachmentStage;
+  filename: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedBy: string;
+  uploadedAt: string;
+}

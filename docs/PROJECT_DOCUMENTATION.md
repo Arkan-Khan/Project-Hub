@@ -12,11 +12,12 @@
 4. [Database Schema](#4-database-schema)
 5. [Authentication](#5-authentication)
 6. [User Roles & Workflows](#6-user-roles--workflows)
-7. [API Reference](#7-api-reference)
-8. [Frontend Pages](#8-frontend-pages)
-9. [Setup Guide](#9-setup-guide)
-10. [Test Accounts](#10-test-accounts)
-11. [Troubleshooting](#11-troubleshooting)
+7. [Super Admin Features (Advanced)](#7-super-admin-features-advanced)
+8. [API Reference](#8-api-reference)
+9. [Frontend Pages](#9-frontend-pages)
+10. [Setup Guide](#10-setup-guide)
+11. [Test Accounts](#11-test-accounts)
+12. [Troubleshooting](#12-troubleshooting)
 
 ---
 
@@ -84,11 +85,18 @@ Project-Hub/
 │   │   ├── dashboard/          # Role-based dashboards
 │   │   └── onboarding/         # Profile creation
 │   ├── components/             # Reusable UI components
-│   ├── lib/                    # API client, auth context
+│   │   ├── attachments-tab.tsx         # File upload UI
+│   │   ├── manual-allocation-modal.tsx # Admin allocation
+│   │   ├── mentor-overview-panel.tsx   # Admin overview
+│   │   └── ...
+│   ├── lib/                    # API client, auth context, utilities
+│   │   ├── export-utils.ts     # CSV/PDF generation
+│   │   └── ...
 │   └── types/                  # TypeScript interfaces
 │
 ├── server/                     # NestJS Backend
 │   ├── prisma/                 # Database schema & migrations
+│   ├── seed-demo-data.sql      # Demo seed data (18 students, 6 teams)
 │   └── src/
 │       ├── auth/               # Authentication module
 │       ├── profiles/           # User profiles
@@ -97,7 +105,10 @@ Project-Hub/
 │       ├── mentor-preferences/ # Student choices
 │       ├── mentor-allocations/ # Faculty responses
 │       ├── project-topics/     # Topic approval system
-│       └── reviews/            # Review workflow
+│       ├── reviews/            # Review workflow
+│       ├── admin/              # Admin features (overview, manual allocation)
+│       ├── supabase/           # Supabase client & storage
+│       └── attachments/        # File upload handling
 │
 └── docs/                       # Documentation
 ```
@@ -249,14 +260,31 @@ model ReviewMessage {
 }
 ```
 
+#### Attachments (Supabase Storage)
+```prisma
+model Attachment {
+  id          String          @id
+  groupId     String
+  stage       AttachmentStage // topic_approval | review_1 | review_2 | final_review
+  filename    String
+  fileUrl     String
+  fileSize    Int             // Size in bytes
+  mimeType    String
+  uploadedBy  String          // Profile ID of uploader (must be leader)
+  uploadedAt  DateTime
+  @@unique([groupId, stage])  // One attachment per stage per group
+}
+```
+
 ### Enums
 ```prisma
 enum Role { student, faculty, super_admin }
 enum Department { IT, CS, ECS, ETC, BM }
-enum AllocationStatus { pending, accepted, rejected }
+enum AllocationStatus { pending, accepted, rejected, waiting }
 enum TopicStatus { submitted, under_review, approved, rejected, revision_requested }
 enum ReviewType { review_1, review_2, final_review }
 enum ReviewStatus { not_started, in_progress, submitted, feedback_given, completed }
+enum AttachmentStage { topic_approval, review_1, review_2, final_review }
 ```
 
 ---
@@ -338,11 +366,13 @@ if (!user) redirect('/auth/login')
 2. Roll out mentor allocation form:
    - Select available faculty
    - Can include self as mentor
-3. Monitor department groups
-4. Roll out review phases:
+3. Monitor department groups via Mentor Overview panel
+4. Manual allocation for groups without mentors
+5. Roll out review phases:
    - Review 1, Review 2, Final Review
    - Each activates for entire department
-5. Can also act as mentor (same as faculty)
+6. Export data as CSV or PDF
+7. Can also act as mentor (same as faculty)
 ```
 
 ### Review Chaining Logic
@@ -363,7 +393,156 @@ Topic Approved?
 
 ---
 
-## 7. API Reference
+## 7. Super Admin Features (Advanced)
+
+### 7.1 Mentor & Group Overview Panel
+
+The admin dashboard includes a comprehensive overview panel showing:
+
+- **All mentors** in the department with their assigned groups
+- **Group progress** including topic status and review completion
+- **Expandable cards** for detailed per-mentor view
+
+**Location**: Admin Dashboard → "Mentor & Group Overview" tab
+
+**API Endpoint**: `GET /api/admin/mentor-overview`
+
+**Response Structure**:
+```typescript
+interface MentorOverview {
+  id: string;
+  name: string;
+  email: string;
+  department: Department;
+  role: "faculty" | "super_admin";
+  domains: string | null;
+  assignedGroups: MentorGroupInfo[];
+}
+
+interface MentorGroupInfo {
+  id: string;
+  groupId: string;           // e.g., "IT01"
+  teamCode: string;          // e.g., "A7DXQ"
+  leaderName: string;
+  memberCount: number;
+  topicStatus: TopicStatus | null;
+  approvedTopicTitle: string | null;
+  review1Status: ReviewStatus | null;
+  review1Progress: number | null;
+  review2Status: ReviewStatus | null;
+  review2Progress: number | null;
+  finalReviewStatus: ReviewStatus | null;
+  finalReviewProgress: number | null;
+}
+```
+
+### 7.2 Export Functionality (CSV & PDF)
+
+Super admins can export mentor/group/progress data for reporting.
+
+**Buttons**: Located in admin dashboard toolbar
+
+**Export Utilities**: `client/lib/export-utils.ts`
+
+```typescript
+// CSV Export
+exportMentorOverviewCSV(mentors: MentorOverview[]): void
+// Downloads: mentor_overview_YYYY-MM-DD.csv
+
+// PDF Export  
+exportMentorOverviewPDF(mentors: MentorOverview[]): void
+// Downloads: mentor_overview_YYYY-MM-DD.pdf
+```
+
+**Dependencies**:
+- `jspdf` - PDF generation
+- `jspdf-autotable` - Table formatting in PDF
+
+### 7.3 Manual Mentor-to-Group Allocation
+
+For groups that haven't been allocated through normal preference flow.
+
+**Use Cases**:
+- Late-joining groups
+- Groups with rejected preferences
+- Direct admin assignment
+
+**API Endpoints**:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/unassigned-groups` | Groups without accepted mentors |
+| GET | `/api/admin/available-mentors` | Faculty available for assignment |
+| POST | `/api/admin/allocate-mentor` | Create manual allocation |
+
+**Request Body** (POST):
+```typescript
+{
+  groupId: string;   // Group UUID (not groupId like "IT01")
+  mentorId: string;  // Mentor profile UUID
+}
+```
+
+**UI Component**: `ManualAllocationModal`
+- Step 1: Select unassigned group
+- Step 2: Select mentor from available list
+- Step 3: Confirm allocation
+
+### 7.4 File Attachments (Supabase Storage)
+
+Students can upload files for each review stage. Only the **group leader** can upload.
+
+**Stages**:
+- Topic Approval
+- Review 1
+- Review 2
+- Final Review
+
+**Constraints**:
+- Max file size: **5 MB**
+- One file per stage per group
+- Allowed types: PDF, Word, PowerPoint, Excel, images, ZIP, RAR, TXT
+
+**API Endpoints**:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/attachments/upload` | Upload file (multipart/form-data) |
+| GET | `/api/attachments/group/:groupId` | List group attachments |
+| DELETE | `/api/attachments/:id` | Delete attachment |
+
+**Upload Request**:
+```typescript
+// FormData with:
+// - file: File
+// - groupId: string
+// - stage: "topic_approval" | "review_1" | "review_2" | "final_review"
+```
+
+**Backend Modules**:
+- `server/src/supabase/` - Supabase client and storage operations
+- `server/src/attachments/` - Attachment controller and service
+
+**Environment Variables** (server/.env):
+```env
+SUPABASE_URL="https://[project-ref].supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+SUPABASE_STORAGE_BUCKET="project-attachments"
+```
+
+**Supabase Setup**:
+1. Create bucket named `project-attachments`
+2. Set bucket to Public (or configure RLS)
+3. Add environment variables to server
+
+**UI Component**: `AttachmentsTab` in project-progress page
+- Shows upload slots for each stage
+- Displays existing attachments with download links
+- Leader-only upload restriction enforced both frontend and backend
+
+---
+
+## 8. API Reference
 
 ### Authentication Endpoints
 
@@ -434,9 +613,39 @@ Topic Approved?
 | POST | `/api/reviews/session/:id/status` | Update session status |
 | POST | `/api/reviews/messages` | Send review message |
 
+### Admin Endpoints (Super Admin Only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/mentor-overview` | Get all mentors with groups and progress |
+| GET | `/api/admin/unassigned-groups` | Get groups without accepted mentors |
+| GET | `/api/admin/available-mentors` | Get available mentors for allocation |
+| POST | `/api/admin/allocate-mentor` | Manually assign mentor to group |
+
+**Manual Allocation Request Body**:
+```json
+{
+  "groupId": "uuid-of-group",
+  "mentorId": "uuid-of-mentor-profile"
+}
+```
+
+### Attachment Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/attachments/upload` | Upload file (multipart/form-data, leader only) |
+| GET | `/api/attachments/group/:groupId` | List attachments for group |
+| DELETE | `/api/attachments/:id` | Delete attachment (leader only) |
+
+**Upload Request** (multipart/form-data):
+- `file`: File (max 5MB)
+- `groupId`: string (UUID)
+- `stage`: "topic_approval" | "review_1" | "review_2" | "final_review"
+
 ---
 
-## 8. Frontend Pages
+## 9. Frontend Pages
 
 ### Public Pages
 
@@ -453,9 +662,9 @@ Topic Approved?
 | `/onboarding` | All | Profile creation |
 | `/dashboard` | All | Role-based redirect |
 | `/dashboard/student` | Student | Student dashboard |
-| `/dashboard/student/project-progress` | Student | Topic & review interface |
+| `/dashboard/student/project-progress` | Student | Topic, reviews & attachments interface |
 | `/dashboard/faculty` | Faculty | Mentor dashboard |
-| `/dashboard/admin` | Super Admin | Admin dashboard |
+| `/dashboard/admin` | Super Admin | Admin dashboard with overview & exports |
 
 ### Components
 
@@ -465,10 +674,13 @@ Topic Approved?
 | `ThreadPanel` | Reusable chat interface |
 | `TopicApprovalSection` | Topic submission & approval |
 | `ReviewSection` | Review progress & feedback |
+| `AttachmentsTab` | File upload per review stage |
+| `MentorOverviewPanel` | Admin mentor/group overview |
+| `ManualAllocationModal` | Admin manual mentor assignment |
 
 ---
 
-## 9. Setup Guide
+## 10. Setup Guide
 
 ### Prerequisites
 
@@ -490,16 +702,22 @@ cat > .env << EOF
 DATABASE_URL="postgresql://postgres:[password]@[host]:5432/postgres"
 DIRECT_URL="postgresql://postgres:[password]@[host]:5432/postgres"
 JWT_SECRET="your-secret-key-min-32-chars"
+SUPABASE_URL="https://[project-ref].supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+SUPABASE_STORAGE_BUCKET="project-attachments"
 EOF
 
 # 4. Initialize database
 npx prisma generate
 npx prisma db push
 
-# 5. (Optional) Seed demo data
-psql $DATABASE_URL -f seed-demo-data.sql
+# 5. Create Supabase Storage bucket
+# Go to Supabase Dashboard → Storage → Create bucket "project-attachments"
 
-# 6. Start server
+# 6. (Optional) Seed demo data
+# Run in Supabase SQL Editor: server/seed-demo-data.sql
+
+# 7. Start server
 npm run start:dev
 # Server runs on http://localhost:3001
 ```
@@ -536,51 +754,84 @@ npx prisma generate
 
 ---
 
-## 10. Test Accounts
+## 11. Test Accounts
 
 ### Seed Data Overview
 
-The seed script creates:
-- **4 Teams** (IT01, IT02, IT03, IT04) with 3 students each
+The seed script (`server/seed-demo-data.sql`) creates:
+- **6 Teams** (IT01-IT06) with 3 students each (18 students total)
 - **3 Faculty** mentors
 - **1 Super Admin**
-- All teams have **ACCEPTED** mentor allocations
+- **4 teams** (IT01-IT04) have **ACCEPTED** mentor allocations
+- **2 teams** (IT05-IT06) have **NO mentor** (for testing manual allocation)
+- **3 groups** with project topics (approved, approved, submitted)
+- **1 review rollout** (Review 1 active)
+- **2 review sessions** (IT01 completed 85%, IT02 in progress 60%)
+- **Sample attachments** for IT01 and IT02
 
 ### Login Credentials
 
+All passwords: `password`
+
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | `superadmin@college.edu` | `password123` |
-| Faculty 1 | `faculty1@gmail.com` | `password123` |
-| Faculty 2 | `faculty2@gmail.com` | `password123` |
-| Faculty 3 | `faculty3@gmail.com` | `password123` |
-| Student 1-12 | `student1@gmail.com` ... `student12@gmail.com` | `password123` |
+| Super Admin | `superadmin@gmail.com` | `password` |
+| Faculty 1 | `faculty1@gmail.com` | `password` |
+| Faculty 2 | `faculty2@gmail.com` | `password` |
+| Faculty 3 | `faculty3@gmail.com` | `password` |
+| Students 1-18 | `student1@gmail.com` ... `student18@gmail.com` | `password` |
 
 ### Team Assignments
 
-| Team | Members | Mentor |
-|------|---------|--------|
-| IT01 | Student 1, 2, 3 | Dr. Ramesh Kumar (Faculty 1) |
-| IT02 | Student 4, 5, 6 | Dr. Priya Sharma (Faculty 2) |
-| IT03 | Student 7, 8, 9 | Dr. Amit Patel (Faculty 3) |
-| IT04 | Student 10, 11, 12 | Prof. Suresh Coordinator (Super Admin) |
+| Team | Leader | Members | Mentor | Status |
+|------|--------|---------|--------|--------|
+| IT01 | student1 (Arkan) | student2, student3 | Prof. Rasika Ransing | ✅ Allocated |
+| IT02 | student4 (Om) | student5, student6 | Prof. Neha Kudu | ✅ Allocated |
+| IT03 | student7 (Pratik) | student8, student9 | Prof. Vinita Bhandiwad | ✅ Allocated |
+| IT04 | student10 (Jack) | student11, student12 | Prof. Kanchan Dhuri | ✅ Allocated |
+| IT05 | student13 (Maya) | student14, student15 | - | ⚠️ No Mentor |
+| IT06 | student16 (Vikram) | student17, student18 | - | ⚠️ No Mentor |
 
-### Testing Workflow
+### Project Progress
 
-1. **Login as student** (e.g., student1@gmail.com)
-2. Go to Project Progress
-3. Submit topics and discuss with mentor
-4. **Login as faculty** (e.g., faculty1@gmail.com)
-5. View team topics, discuss, approve
-6. **Login as admin** (superadmin@college.edu)
-7. Roll out Review 1
-8. Back to student: submit review progress
-9. Faculty: provide feedback, complete review
-10. Repeat for Review 2 and Final Review
+| Team | Topic Status | Review 1 | Review 2 | Final |
+|------|-------------|----------|----------|-------|
+| IT01 | ✅ Approved | ✅ 85% | 🔒 Locked | 🔒 Locked |
+| IT02 | ✅ Approved | ⏳ 60% | 🔒 Locked | 🔒 Locked |
+| IT03 | 📝 Submitted | 🔒 Locked | 🔒 Locked | 🔒 Locked |
+| IT04 | ❌ Not Submitted | 🔒 Locked | 🔒 Locked | 🔒 Locked |
+
+### Testing New Features
+
+#### 1. Mentor Overview & Export
+```
+1. Login: superadmin@gmail.com / password
+2. Go to Admin Dashboard → "Mentor & Group Overview" tab
+3. View all 4 mentors with their groups and progress
+4. Click "Export CSV" or "Export PDF"
+```
+
+#### 2. Manual Allocation
+```
+1. In Admin Dashboard, click "Manual Allocation" button
+2. Badge shows "2" (IT05, IT06 unassigned)
+3. Select IT05 or IT06
+4. Choose a mentor (e.g., faculty1)
+5. Confirm allocation
+```
+
+#### 3. File Attachments
+```
+1. Login: student1@gmail.com / password (IT01 leader)
+2. Go to Dashboard → Project Progress → Attachments tab
+3. See existing attachments from seed data
+4. Upload a file (≤5MB) to test
+5. Login as student2 (non-leader) → Cannot upload
+```
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 ### Common Issues
 
@@ -611,6 +862,21 @@ if (!user) redirect('/auth/login')
 **Cause**: JWT expired or invalid  
 **Solution**: api-client.ts automatically clears token on 401
 
+#### "File upload fails"
+**Cause**: Supabase not configured or bucket doesn't exist  
+**Solution**: 
+1. Create bucket `project-attachments` in Supabase Storage
+2. Add SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_STORAGE_BUCKET to server/.env
+3. Restart backend server
+
+#### "Attachment upload: Only leader can upload"
+**Cause**: Not the group leader  
+**Solution**: Only the user who created the group can upload files
+
+#### "Manual allocation validation errors"
+**Cause**: class-validator decorators not loaded  
+**Solution**: Restart backend server after DTO changes
+
 ### Debug Commands
 
 ```bash
@@ -620,9 +886,9 @@ cd server && npm run start:dev
 # Check database
 npx prisma studio
 
-# Reset everything
+# Reset everything and reseed
 npx prisma db push --force-reset
-psql $DATABASE_URL -f seed-demo-data.sql
+# Then run seed-demo-data.sql in Supabase SQL Editor
 ```
 
 ### API Testing
@@ -631,11 +897,18 @@ psql $DATABASE_URL -f seed-demo-data.sql
 # Login
 curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"student1@gmail.com","password":"password123"}'
+  -d '{"email":"student1@gmail.com","password":"password"}'
 
 # Use token
 curl http://localhost:3001/api/profiles/me \
   -H "Authorization: Bearer <token>"
+
+# Upload attachment (multipart)
+curl -X POST http://localhost:3001/api/attachments/upload \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@document.pdf" \
+  -F "groupId=<group-uuid>" \
+  -F "stage=topic_approval"
 ```
 
 ---
@@ -649,6 +922,9 @@ curl http://localhost:3001/api/profiles/me \
 DATABASE_URL="postgresql://..."
 DIRECT_URL="postgresql://..."
 JWT_SECRET="min-32-character-secret"
+SUPABASE_URL="https://[project-ref].supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+SUPABASE_STORAGE_BUCKET="project-attachments"
 ```
 
 **Frontend (.env.local)**
@@ -663,7 +939,8 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api
 | Frontend | http://localhost:3000 |
 | Backend API | http://localhost:3001/api |
 | Prisma Studio | http://localhost:5555 |
+| Supabase Dashboard | https://supabase.com/dashboard |
 
 ---
 
-*Last updated: January 2025*
+*Last updated: March 2026*

@@ -10,6 +10,9 @@ import { MentorAllocationsModule } from './mentor-allocations/mentor-allocations
 import { ProjectTopicsModule } from './project-topics/project-topics.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AdminModule } from './admin/admin.module';
+import { SupabaseModule } from './supabase/supabase.module';
+import { AttachmentsModule } from './attachments/attachments.module';
 
 @Module({
   imports: [
@@ -17,6 +20,7 @@ import { PrismaModule } from './prisma/prisma.module';
       isGlobal: true,
     }),
     PrismaModule,
+    SupabaseModule,
     AuthModule,
     UsersModule,
     ProfilesModule,
@@ -26,6 +30,8 @@ import { PrismaModule } from './prisma/prisma.module';
     MentorAllocationsModule,
     ProjectTopicsModule,
     ReviewsModule,
+    AdminModule,
+    AttachmentsModule,
   ],
 })
 export class AppModule {}

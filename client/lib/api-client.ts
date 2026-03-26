@@ -68,6 +68,45 @@ async function apiFetch<T>(
   return JSON.parse(text);
 }
 
+// File upload wrapper
+async function apiUpload<T>(
+  endpoint: string,
+  file: File,
+): Promise<T> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      removeToken();
+    }
+    
+    const error = await response.json().catch(() => ({
+      message: response.statusText,
+    }));
+    throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return null as T;
+  }
+
+  return JSON.parse(text);
+}
+
 export const api = {
   // GET request
   get: <T>(endpoint: string): Promise<T> => {
@@ -93,5 +132,10 @@ export const api = {
   // DELETE request
   delete: <T>(endpoint: string): Promise<T> => {
     return apiFetch<T>(endpoint, { method: "DELETE" });
+  },
+
+  // File upload
+  upload: <T>(endpoint: string, file: File): Promise<T> => {
+    return apiUpload<T>(endpoint, file);
   },
 };
