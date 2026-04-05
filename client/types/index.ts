@@ -209,6 +209,7 @@ export interface MentorGroupInfo {
     name: string;
     email: string;
     rollNumber: string | null;
+    semester: number | null;
   }[];
   topicStatus: TopicStatusType;
   approvedTopicTitle: string | null;
@@ -261,20 +262,20 @@ export interface AvailableMentor {
 // Attachment Types
 // ============================================
 
-export type AttachmentStage =
-  | "topic_approval"
-  | "review_1"
-  | "review_2"
-  | "final_review";
-
 export interface Attachment {
   id: string;
   groupId: string;
-  stage: AttachmentStage;
   filename: string;
   fileUrl: string;
   fileSize: number;
   mimeType: string;
   uploadedBy: string;
   uploadedAt: string;
+  uploader?: {
+    id: string;
+    name: string;
+  };
 }
+
+export const MAX_ATTACHMENTS_PER_GROUP = 5;
+export const MAX_FILE_SIZE_MB = 5;

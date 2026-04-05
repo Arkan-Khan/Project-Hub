@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Plus, UserPlus, FileText, ClipboardList } from "lucide-react";
+import { Users, Plus, UserPlus, FileText, ClipboardList, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StatCardSkeleton, CardSkeleton, ListSkeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -19,6 +20,7 @@ import {
   GroupWithMembers,
 } from "@/lib/api";
 import { Group, Profile } from "@/types";
+import { getCachedData, setCachedData, invalidateCache, CACHE_KEYS, CACHE_TTL } from "@/lib/cache";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -30,6 +32,7 @@ export default function StudentDashboard() {
   const [teamCodeInput, setTeamCodeInput] = useState("");
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [mentorFormActive, setMentorFormActive] = useState(false);
   const [hasSubmittedPreferences, setHasSubmittedPreferences] = useState(false);
   const [mentorStatus, setMentorStatus] = useState<{
@@ -56,12 +59,30 @@ export default function StudentDashboard() {
     loadGroupData();
   }, [user, profile, router, authLoading]);
 
-  const loadGroupData = async () => {
+  const loadGroupData = useCallback(async (forceRefresh = false) => {
     if (!profile) return;
 
     try {
+      setInitialLoading(true);
+      
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        const cachedGroup = getCachedData<GroupWithMembers>(CACHE_KEYS.MY_GROUP);
+        if (cachedGroup) {
+          setGroup(cachedGroup);
+          if (cachedGroup.members) {
+            setMembers(cachedGroup.members.map((m) => m.profile));
+          }
+          setInitialLoading(false);
+          // Continue loading other data in background
+        }
+      }
+      
       const userGroup = await groupApi.getMyGroup();
       setGroup(userGroup);
+      if (userGroup) {
+        setCachedData(CACHE_KEYS.MY_GROUP, userGroup, CACHE_TTL.MEDIUM);
+      }
 
       if (userGroup) {
         const groupMembers = userGroup.members.map((m) => m.profile);
@@ -98,9 +119,17 @@ export default function StudentDashboard() {
           console.error("Failed to load topics:", error);
         }
       }
+      setInitialLoading(false);
     } catch (error: any) {
       console.error("Failed to load group data:", error);
+      setInitialLoading(false);
     }
+  }, [profile]);
+
+  const handleRefresh = () => {
+    invalidateCache(CACHE_KEYS.MY_GROUP);
+    loadGroupData(true);
+    showToast("Refreshing data...", "info");
   };
 
   const handleCreateGroup = async () => {
@@ -112,7 +141,8 @@ export default function StudentDashboard() {
       setGroup(newGroup);
       setMembers([profile]);
       showToast("Group created successfully!", "success");
-      await loadGroupData();
+      invalidateCache(CACHE_KEYS.MY_GROUP);
+      await loadGroupData(true);
     } catch (error: any) {
       showToast(error.message || "Failed to create group", "error");
     } finally {
@@ -129,7 +159,8 @@ export default function StudentDashboard() {
       showToast("Joined group successfully!", "success");
       setShowJoinForm(false);
       setTeamCodeInput("");
-      await loadGroupData();
+      invalidateCache(CACHE_KEYS.MY_GROUP);
+      await loadGroupData(true);
     } catch (error: any) {
       showToast(error.message || "Failed to join group", "error");
     } finally {
@@ -142,7 +173,36 @@ export default function StudentDashboard() {
   return (
     <DashboardLayout title="Student Dashboard">
       <div className="max-w-4xl mx-auto space-y-6">
-        {!group ? (
+        {/* Refresh Button */}
+        {group && (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              size="sm"
+              disabled={initialLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${initialLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        )}
+
+        {/* Loading Skeleton */}
+        {initialLoading && !group ? (
+          <div className="space-y-6">
+            <CardSkeleton className="h-48" />
+          </div>
+        ) : initialLoading && group ? (
+          <div className="space-y-6">
+            <CardSkeleton className="h-32" />
+            <div className="grid md:grid-cols-2 gap-4">
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </div>
+            <ListSkeleton items={2} />
+          </div>
+        ) : !group ? (
           <>
             <Card>
               <CardHeader>
@@ -276,8 +336,8 @@ export default function StudentDashboard() {
               </CardContent>
             </Card>
 
-            {/* Mentor Allocation Section */}
-            {mentorFormActive && (
+            {/* Mentor Allocation Section - Hide if mentor already assigned */}
+            {mentorFormActive && mentorStatus?.status !== "Accepted" && (
               <Card>
                 <CardHeader>
                   <CardTitle>Mentor Allocation</CardTitle>

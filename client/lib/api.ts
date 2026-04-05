@@ -502,11 +502,11 @@ export const adminApi = {
 
 // ============ ATTACHMENTS API ============
 
-import { Attachment, AttachmentStage } from "@/types";
+import { Attachment } from "@/types";
 
 export const attachmentsApi = {
-  upload: async (stage: AttachmentStage, file: File): Promise<Attachment> => {
-    return api.upload<Attachment>(`/attachments/upload/${stage}`, file);
+  upload: async (file: File): Promise<Attachment> => {
+    return api.upload<Attachment>(`/attachments/upload`, file);
   },
 
   getMyGroupAttachments: async (): Promise<Attachment[]> => {

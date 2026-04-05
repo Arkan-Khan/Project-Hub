@@ -8,9 +8,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { GroupsService } from '../groups/groups.service';
 import { SupabaseService } from '../supabase/supabase.service';
-import { AttachmentStage } from '@prisma/client';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_FILES_PER_GROUP = 5; // Maximum 5 files per group
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -59,12 +59,45 @@ export class AttachmentsService {
     return { profile, group };
   }
 
+  private async verifyGroupMemberOrMentor(userId: string) {
+    const profile = await this.profilesService.findByUserId(userId);
+    if (!profile) {
+      throw new BadRequestException('Profile not found');
+    }
+
+    // Check if user is a student member
+    if (profile.role === 'student') {
+      const group = await this.groupsService.findByMemberId(profile.id);
+      if (group) {
+        return { profile, group, isLeader: group.createdBy === profile.id };
+      }
+    }
+
+    // Check if user is a mentor for any group
+    if (profile.role === 'faculty' || profile.role === 'super_admin') {
+      // Mentors can view all their assigned groups' attachments
+      return { profile, group: null as any, isLeader: false, isMentor: true };
+    }
+
+    throw new NotFoundException('You are not associated with any group');
+  }
+
   async uploadAttachment(
     userId: string,
-    stage: AttachmentStage,
     file: Express.Multer.File,
   ) {
     const { profile, group } = await this.verifyGroupLeader(userId);
+
+    // Check current attachment count
+    const currentCount = await this.prisma.attachment.count({
+      where: { groupId: group.id },
+    });
+
+    if (currentCount >= MAX_FILES_PER_GROUP) {
+      throw new BadRequestException(
+        `Maximum ${MAX_FILES_PER_GROUP} files allowed per group. Please delete an existing file before uploading a new one.`,
+      );
+    }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
@@ -80,19 +113,9 @@ export class AttachmentsService {
       );
     }
 
-    // Check if there's already an attachment for this stage
-    const existing = await this.prisma.attachment.findUnique({
-      where: {
-        groupId_stage: {
-          groupId: group.id,
-          stage,
-        },
-      },
-    });
-
-    // Generate storage path
+    // Generate storage path (no stage now, just group/timestamp)
     const fileExtension = file.originalname.split('.').pop() || '';
-    const storagePath = `${group.id}/${stage}/${Date.now()}.${fileExtension}`;
+    const storagePath = `${group.id}/files/${Date.now()}.${fileExtension}`;
 
     // Upload to Supabase
     const fileUrl = await this.supabaseService.uploadFile(
@@ -101,40 +124,23 @@ export class AttachmentsService {
       file.mimetype,
     );
 
-    // If there was an existing attachment, delete the old file
-    if (existing) {
-      // Extract old path from URL (last 3 segments)
-      const oldPath = existing.fileUrl.split('/').slice(-3).join('/');
-      try {
-        await this.supabaseService.deleteFile(oldPath);
-      } catch (error) {
-        console.error('Failed to delete old file:', error);
-      }
-
-      // Update existing record
-      return this.prisma.attachment.update({
-        where: { id: existing.id },
-        data: {
-          filename: file.originalname,
-          fileUrl,
-          fileSize: file.size,
-          mimeType: file.mimetype,
-          uploadedBy: profile.id,
-          uploadedAt: new Date(),
-        },
-      });
-    }
-
     // Create new attachment record
     return this.prisma.attachment.create({
       data: {
         groupId: group.id,
-        stage,
         filename: file.originalname,
         fileUrl,
         fileSize: file.size,
         mimeType: file.mimetype,
         uploadedBy: profile.id,
+      },
+      include: {
+        uploader: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
   }
@@ -142,7 +148,15 @@ export class AttachmentsService {
   async getAttachmentsByGroup(groupId: string) {
     return this.prisma.attachment.findMany({
       where: { groupId },
-      orderBy: { stage: 'asc' },
+      orderBy: { uploadedAt: 'desc' },
+      include: {
+        uploader: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
   }
 
@@ -152,12 +166,17 @@ export class AttachmentsService {
       return [];
     }
 
-    const group = await this.groupsService.findByMemberId(profile.id);
-    if (!group) {
-      return [];
+    // For students, get their group's attachments
+    if (profile.role === 'student') {
+      const group = await this.groupsService.findByMemberId(profile.id);
+      if (!group) {
+        return [];
+      }
+      return this.getAttachmentsByGroup(group.id);
     }
 
-    return this.getAttachmentsByGroup(group.id);
+    // For faculty, they should use getAttachmentsByGroup with specific groupId
+    return [];
   }
 
   async deleteAttachment(userId: string, attachmentId: string) {
@@ -175,9 +194,11 @@ export class AttachmentsService {
       throw new ForbiddenException('Cannot delete attachments from other groups');
     }
 
-    // Delete from Supabase
-    const storagePath = attachment.fileUrl.split('/').slice(-3).join('/');
+    // Delete from Supabase - extract storage path from URL
     try {
+      const urlParts = attachment.fileUrl.split('/');
+      // Get the last segments that make up the storage path
+      const storagePath = urlParts.slice(-3).join('/');
       await this.supabaseService.deleteFile(storagePath);
     } catch (error) {
       console.error('Failed to delete file from storage:', error);
@@ -189,5 +210,11 @@ export class AttachmentsService {
     });
 
     return { message: 'Attachment deleted successfully' };
+  }
+
+  async getAttachmentCount(groupId: string): Promise<number> {
+    return this.prisma.attachment.count({
+      where: { groupId },
+    });
   }
 }

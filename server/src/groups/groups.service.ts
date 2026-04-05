@@ -114,6 +114,7 @@ export class GroupsService {
       where: { teamCode },
       include: {
         members: true,
+        creator: true,
       },
     });
 
@@ -126,6 +127,15 @@ export class GroupsService {
       throw new BadRequestException(
         'Can only join groups from your department',
       );
+    }
+
+    // Check semester match - students can only join groups with same semester
+    if (profile.semester !== null && group.creator?.semester !== null) {
+      if (profile.semester !== group.creator.semester) {
+        throw new BadRequestException(
+          `You can only join groups with students from your semester (Semester ${profile.semester}). This group is for Semester ${group.creator.semester}.`,
+        );
+      }
     }
 
     // Check if group is full

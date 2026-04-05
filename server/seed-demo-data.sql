@@ -289,20 +289,37 @@ VALUES
   ('rmsg-2-2', 'session-2-r1', 'group-2', 'profile-student-4', 'Om Alve', 'student', 'Here is our AWS architecture diagram and the API documentation we have implemented so far.', '{}', '2025-11-06 14:15:00');
 
 -- =====================================================
--- ATTACHMENTS (Sample file attachments for testing)
+-- ATTACHMENTS (Sample file attachments for flexible system)
 -- Note: These reference placeholder URLs - actual files need to be in Supabase Storage
+-- NEW: No stage categorization - flexible uploads (max 5 per group)
 -- =====================================================
 
--- Group 1: Has attachments for topic approval and review 1
-INSERT INTO "Attachment" (id, "groupId", stage, filename, "fileUrl", "fileSize", "mimeType", "uploadedBy", "uploadedAt")
+-- Group 1: Has 3 files (demonstrating flexible uploads)
+INSERT INTO "Attachment" (id, "groupId", filename, "fileUrl", "fileSize", "mimeType", "uploadedBy", "uploadedAt")
 VALUES
-  ('attach-1-topic', 'group-1', 'topic_approval', 'Project_Proposal_IT01.pdf', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-1/topic_approval/Project_Proposal_IT01.pdf', 1048576, 'application/pdf', 'profile-student-1', '2025-10-30 10:00:00'),
-  ('attach-1-r1', 'group-1', 'review_1', 'Review1_Presentation_IT01.pptx', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-1/review_1/Review1_Presentation_IT01.pptx', 2097152, 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'profile-student-1', '2025-11-05 09:00:00');
+  ('attach-1-1', 'group-1', 'Project_Proposal_IT01.pdf', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-1/files/Project_Proposal_IT01.pdf', 1048576, 'application/pdf', 'profile-student-1', '2025-10-30 10:00:00'),
+  ('attach-1-2', 'group-1', 'System_Architecture.png', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-1/files/System_Architecture.png', 524288, 'image/png', 'profile-student-2', '2025-11-02 14:30:00'),
+  ('attach-1-3', 'group-1', 'Progress_Report_Nov.docx', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-1/files/Progress_Report_Nov.docx', 786432, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'profile-student-1', '2025-11-05 09:00:00');
 
--- Group 2: Has attachment for topic approval only
-INSERT INTO "Attachment" (id, "groupId", stage, filename, "fileUrl", "fileSize", "mimeType", "uploadedBy", "uploadedAt")
+-- Group 2: Has 2 files
+INSERT INTO "Attachment" (id, "groupId", filename, "fileUrl", "fileSize", "mimeType", "uploadedBy", "uploadedAt")
 VALUES
-  ('attach-2-topic', 'group-2', 'topic_approval', 'Project_Proposal_IT02.pdf', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-2/topic_approval/Project_Proposal_IT02.pdf', 921600, 'application/pdf', 'profile-student-4', '2025-10-30 11:00:00');
+  ('attach-2-1', 'group-2', 'Cloud_Architecture_Diagram.pdf', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-2/files/Cloud_Architecture_Diagram.pdf', 921600, 'application/pdf', 'profile-student-4', '2025-10-30 11:00:00'),
+  ('attach-2-2', 'group-2', 'API_Documentation.pdf', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-2/files/API_Documentation.pdf', 1572864, 'application/pdf', 'profile-student-5', '2025-11-03 16:20:00');
+
+-- Group 3: Has 5 files (maximum allowed)
+INSERT INTO "Attachment" (id, "groupId", filename, "fileUrl", "fileSize", "mimeType", "uploadedBy", "uploadedAt")
+VALUES
+  ('attach-3-1', 'group-3', 'Project_Charter.pdf', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-3/files/Project_Charter.pdf', 655360, 'application/pdf', 'profile-student-7', '2025-10-29 15:00:00'),
+  ('attach-3-2', 'group-3', 'Wireframes.zip', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-3/files/Wireframes.zip', 3145728, 'application/zip', 'profile-student-8', '2025-10-31 10:30:00'),
+  ('attach-3-3', 'group-3', 'Database_Schema.png', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-3/files/Database_Schema.png', 412876, 'image/png', 'profile-student-9', '2025-11-01 12:00:00'),
+  ('attach-3-4', 'group-3', 'Tech_Stack_Analysis.xlsx', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-3/files/Tech_Stack_Analysis.xlsx', 245760, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'profile-student-7', '2025-11-04 09:45:00'),
+  ('attach-3-5', 'group-3', 'Sprint_1_Demo.pptx', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-3/files/Sprint_1_Demo.pptx', 2097152, 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'profile-student-8', '2025-11-06 11:15:00');
+
+-- Group 4: Has 1 file
+INSERT INTO "Attachment" (id, "groupId", filename, "fileUrl", "fileSize", "mimeType", "uploadedBy", "uploadedAt")
+VALUES
+  ('attach-4-1', 'group-4', 'Initial_Proposal.pdf', 'https://placeholder.supabase.co/storage/v1/object/public/project-attachments/group-4/files/Initial_Proposal.pdf', 819200, 'application/pdf', 'profile-student-10', '2025-10-30 13:00:00');
 
 -- =====================================================
 -- ADDITIONAL DATA FOR MENTOR OVERVIEW FEATURE
@@ -356,20 +373,86 @@ VALUES
 -- "Unassigned Groups" list for manual allocation testing
 
 -- =====================================================
+-- SEMESTER FILTER TESTING DATA
+-- Add groups with students from different semesters (5 and 6)
+-- =====================================================
+
+-- Add 6 more students from Semester 5
+INSERT INTO "User" (id, email, password, "createdAt", "updatedAt")
+VALUES 
+  ('user-student-19', 'student19@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-20', 'student20@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-21', 'student21@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-22', 'student22@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-23', 'student23@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('user-student-24', 'student24@gmail.com', '$2a$10$5pp3A2nwzGLAGIq6TfDhOezLMrn1OeSg6O09SfAvxo62ekvWOvH5O', '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+
+INSERT INTO "Profile" (id, "userId", name, email, role, department, "rollNumber", semester, "createdAt", "updatedAt")
+VALUES 
+  ('profile-student-19', 'user-student-19', 'Ishaan Verma', 'student19@gmail.com', 'student', 'IT', '23101A0001', 5, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-student-20', 'user-student-20', 'Kavya Nair', 'student20@gmail.com', 'student', 'IT', '23101A0002', 5, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-student-21', 'user-student-21', 'Arjun Malhotra', 'student21@gmail.com', 'student', 'IT', '23101A0003', 5, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-student-22', 'user-student-22', 'Diya Gupta', 'student22@gmail.com', 'student', 'IT', '23101A0004', 6, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-student-23', 'user-student-23', 'Karan Singh', 'student23@gmail.com', 'student', 'IT', '23101A0005', 6, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('profile-student-24', 'user-student-24', 'Ananya Rao', 'student24@gmail.com', 'student', 'IT', '23101A0006', 6, '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+
+-- Update group counter
+UPDATE "GroupCounter" SET counter = 8 WHERE department = 'IT';
+
+-- Add 2 groups: one from Semester 5, one from Semester 6
+INSERT INTO "Group" (id, "groupId", "teamCode", department, "createdBy", "isFull", "createdAt", "updatedAt")
+VALUES 
+  ('group-7', 'IT07', 'TEAM7', 'IT', 'profile-student-19', true, '2025-10-29 10:00:00', '2025-10-29 10:00:00'),
+  ('group-8', 'IT08', 'TEAM8', 'IT', 'profile-student-22', true, '2025-10-29 10:00:00', '2025-10-29 10:00:00');
+
+-- Group 7 members (Semester 5)
+INSERT INTO "GroupMember" (id, "groupId", "profileId", "joinedAt")
+VALUES 
+  ('member-7-1', 'group-7', 'profile-student-19', '2025-10-29 10:00:00'),
+  ('member-7-2', 'group-7', 'profile-student-20', '2025-10-29 10:00:00'),
+  ('member-7-3', 'group-7', 'profile-student-21', '2025-10-29 10:00:00');
+
+-- Group 8 members (Semester 6)
+INSERT INTO "GroupMember" (id, "groupId", "profileId", "joinedAt")
+VALUES 
+  ('member-8-1', 'group-8', 'profile-student-22', '2025-10-29 10:00:00'),
+  ('member-8-2', 'group-8', 'profile-student-23', '2025-10-29 10:00:00'),
+  ('member-8-3', 'group-8', 'profile-student-24', '2025-10-29 10:00:00');
+
+-- Assign mentors to new groups (for testing semester filter)
+INSERT INTO "MentorAllocation" (id, "groupId", "mentorId", "preferenceRank", status, "createdAt", "updatedAt")
+VALUES
+  ('alloc-7', 'group-7', 'profile-faculty-1', 1, 'accepted', '2025-10-29 12:00:00', '2025-10-29 15:00:00'),
+  ('alloc-8', 'group-8', 'profile-faculty-2', 1, 'accepted', '2025-10-29 12:00:00', '2025-10-29 15:00:00');
+
+-- Add topics for new groups
+INSERT INTO "ProjectTopic" (id, "groupId", title, description, status, "createdAt", "updatedAt")
+VALUES
+  ('topic-7', 'group-7', 'Mobile App Development Platform', 'A cross-platform mobile development framework using React Native', 'approved', '2025-10-30 10:00:00', '2025-11-01 09:00:00'),
+  ('topic-8', 'group-8', 'Real-time Chat Application', 'WebSocket-based real-time messaging platform with end-to-end encryption', 'pending', '2025-10-30 11:00:00', '2025-10-30 11:00:00');
+
+-- =====================================================
 -- SEED DATA SUMMARY
 -- =====================================================
--- Users: 1 Super Admin, 3 Faculty, 18 Students (password: 'password')
--- Groups: 6 groups of 3 students each
---   - 4 groups (IT01-IT04) have ACCEPTED mentors
+-- Users: 1 Super Admin, 3 Faculty, 24 Students (password: 'password')
+-- Groups: 8 groups of 3 students each
+--   - 6 groups (IT01-IT04, IT07-IT08) have ACCEPTED mentors
 --   - 2 groups (IT05-IT06) have NO mentor (for manual allocation testing)
 --
+-- Semester Distribution:
+--   - Semester 5: 3 students (Group IT07)
+--   - Semester 6: 3 students (Group IT08)
+--   - Semester 7: 18 students (Groups IT01-IT06)
+--
 -- Mentor Allocations:
---   - IT01 (TEAM1) → Prof. Rasika Ransing (Faculty 1) ✓
---   - IT02 (TEAM2) → Prof. Neha Kudu (Faculty 2) ✓
---   - IT03 (TEAM3) → Prof. Vinita Bhandiwad (Faculty 3) ✓
---   - IT04 (TEAM4) → Prof. Kanchan Dhuri (Super Admin) ✓
---   - IT05 (TEAM5) → NO MENTOR (for manual allocation)
---   - IT06 (TEAM6) → NO MENTOR (for manual allocation)
+--   - IT01 (TEAM1) → Prof. Rasika Ransing (Faculty 1) ✓ [Semester 7]
+--   - IT02 (TEAM2) → Prof. Neha Kudu (Faculty 2) ✓ [Semester 7]
+--   - IT03 (TEAM3) → Prof. Vinita Bhandiwad (Faculty 3) ✓ [Semester 7]
+--   - IT04 (TEAM4) → Prof. Kanchan Dhuri (Super Admin) ✓ [Semester 7]
+--   - IT05 (TEAM5) → NO MENTOR (for manual allocation) [Semester 7]
+--   - IT06 (TEAM6) → NO MENTOR (for manual allocation) [Semester 7]
+--   - IT07 (TEAM7) → Prof. Rasika Ransing (Faculty 1) ✓ [Semester 5]
+--   - IT08 (TEAM8) → Prof. Neha Kudu (Faculty 2) ✓ [Semester 6]
 --
 -- Project Topics:
 --   - IT01: Approved (AI Attendance System)
@@ -377,6 +460,15 @@ VALUES
 --   - IT03: Pending (Blockchain Certificates)
 --   - IT04: Not submitted
 --   - IT05/IT06: N/A (no mentor yet)
+--   - IT07: Approved (Mobile App Platform)
+--   - IT08: Pending (Real-time Chat App)
+--
+-- Attachments (Flexible System - No Stage):
+--   - IT01: 3 files (PDF, PNG, DOCX)
+--   - IT02: 2 files (PDFs)
+--   - IT03: 5 files - MAX REACHED (PDF, ZIP, PNG, XLSX, PPTX)
+--   - IT04: 1 file (PDF)
+--   - IT05-IT08: No files yet
 --
 -- Reviews:
 --   - IT01: Review 1 completed (85%)

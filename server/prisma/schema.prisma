@@ -61,6 +61,7 @@ model Profile {
   submittedPreferences MentorPreference[]
   mentorAllocations    MentorAllocation[]     @relation("MentorAllocations")
   availableInForms     AvailableMentor[]
+  uploadedAttachments  Attachment[]
 }
 
 // Group/Team model
@@ -80,6 +81,7 @@ model Group {
   preferences MentorPreference[]
   allocations MentorAllocation[]
   topics      ProjectTopic[]
+  attachments Attachment[]
 }
 
 // Group membership (many-to-many between Profile and Group)
@@ -298,7 +300,7 @@ enum AttachmentStage {
 model Attachment {
   id          String          @id @default(uuid())
   groupId     String
-  stage       AttachmentStage
+  stage       AttachmentStage? // Made optional for backwards compatibility
   filename    String
   fileUrl     String
   fileSize    Int             // Size in bytes
@@ -306,6 +308,8 @@ model Attachment {
   uploadedBy  String          // Profile ID of uploader
   uploadedAt  DateTime        @default(now())
   
-  @@unique([groupId, stage]) // One attachment per stage per group
+  group       Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploader    Profile         @relation(fields: [uploadedBy], references: [id])
+  
   @@index([groupId])
 }

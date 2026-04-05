@@ -10,6 +10,7 @@ import {
   AlertCircle,
   FileText,
   User,
+  Filter,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -18,6 +19,8 @@ import { MentorOverview, MentorGroupInfo, ReviewStatus } from "@/types";
 interface MentorOverviewPanelProps {
   mentors: MentorOverview[];
   loading?: boolean;
+  semesterFilter?: number | null;
+  onSemesterFilterChange?: (semester: number | null) => void;
 }
 
 function getTopicStatusBadge(status: MentorGroupInfo["topicStatus"]) {
@@ -141,15 +144,15 @@ function MentorCard({ mentor }: { mentor: MentorOverview }) {
                   <tr className="border-b text-left">
                     <th className="pb-2 font-medium text-gray-600">Group</th>
                     <th className="pb-2 font-medium text-gray-600">Leader</th>
-                    <th className="pb-2 font-medium text-gray-600">Members</th>
-                    <th className="pb-2 font-medium text-gray-600">Topic</th>
-                    <th className="pb-2 font-medium text-gray-600 text-center">
+                    <th className="pb-2 font-medium text-gray-600 w-20">Members</th>
+                    <th className="pb-2 font-medium text-gray-600 w-28">Topic</th>
+                    <th className="pb-2 font-medium text-gray-600 text-center w-16">
                       R1
                     </th>
-                    <th className="pb-2 font-medium text-gray-600 text-center">
+                    <th className="pb-2 font-medium text-gray-600 text-center w-16">
                       R2
                     </th>
-                    <th className="pb-2 font-medium text-gray-600 text-center">
+                    <th className="pb-2 font-medium text-gray-600 text-center w-16">
                       Final
                     </th>
                   </tr>
@@ -243,7 +246,43 @@ function GroupRow({ group }: { group: MentorGroupInfo }) {
 export function MentorOverviewPanel({
   mentors,
   loading,
+  semesterFilter,
+  onSemesterFilterChange,
 }: MentorOverviewPanelProps) {
+  // Get unique semesters from all groups
+  const allSemesters = React.useMemo(() => {
+    const semesters = new Set<number>();
+    mentors.forEach((mentor) => {
+      mentor.assignedGroups.forEach((group) => {
+        group.members.forEach((member) => {
+          if (member.semester) {
+            semesters.add(member.semester);
+          }
+        });
+      });
+    });
+    return Array.from(semesters).sort((a, b) => a - b);
+  }, [mentors]);
+
+  // Filter mentors and groups by semester
+  const filteredMentors = React.useMemo(() => {
+    if (semesterFilter === null || semesterFilter === undefined) {
+      return mentors;
+    }
+    return mentors
+      .map((mentor) => ({
+        ...mentor,
+        assignedGroups: mentor.assignedGroups.filter((group) =>
+          group.members.some((member) => member.semester === semesterFilter)
+        ),
+      }))
+      .filter((mentor) => mentor.assignedGroups.length > 0)
+      .map((mentor) => ({
+        ...mentor,
+        totalGroups: mentor.assignedGroups.length,
+      }));
+  }, [mentors, semesterFilter]);
+
   if (loading) {
     return (
       <Card>
@@ -273,14 +312,34 @@ export function MentorOverviewPanel({
     );
   }
 
-  const totalGroups = mentors.reduce((sum, m) => sum + m.totalGroups, 0);
+  const totalGroups = filteredMentors.reduce((sum, m) => sum + m.totalGroups, 0);
 
   return (
     <div className="space-y-4">
+      {/* Semester Filter */}
+      {allSemesters.length > 0 && onSemesterFilterChange && (
+        <div className="flex items-center gap-2 justify-end">
+          <Filter className="h-4 w-4 text-gray-500" />
+          <label className="text-sm text-gray-600">Filter by Semester:</label>
+          <select
+            value={semesterFilter ?? ""}
+            onChange={(e) => onSemesterFilterChange(e.target.value ? parseInt(e.target.value) : null)}
+            className="border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">All Semesters</option>
+            {allSemesters.map((sem) => (
+              <option key={sem} value={sem}>
+                Semester {sem}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-primary">{mentors.length}</div>
+          <div className="text-2xl font-bold text-primary">{filteredMentors.length}</div>
           <div className="text-sm text-gray-500">Active Mentors</div>
         </div>
         <div className="bg-white border rounded-lg p-4 text-center">
@@ -289,7 +348,7 @@ export function MentorOverviewPanel({
         </div>
         <div className="bg-white border rounded-lg p-4 text-center">
           <div className="text-2xl font-bold text-green-600">
-            {mentors
+            {filteredMentors
               .flatMap((m) => m.assignedGroups)
               .filter((g) => g.topicStatus === "approved").length}
           </div>
@@ -297,7 +356,7 @@ export function MentorOverviewPanel({
         </div>
         <div className="bg-white border rounded-lg p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">
-            {mentors
+            {filteredMentors
               .flatMap((m) => m.assignedGroups)
               .filter((g) => g.finalReviewStatus === "completed").length}
           </div>
@@ -307,9 +366,20 @@ export function MentorOverviewPanel({
 
       {/* Mentor Cards */}
       <div>
-        {mentors.map((mentor) => (
-          <MentorCard key={mentor.id} mentor={mentor} />
-        ))}
+        {filteredMentors.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-gray-500">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No groups found for Semester {semesterFilter}.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredMentors.map((mentor) => (
+            <MentorCard key={mentor.id} mentor={mentor} />
+          ))
+        )}
       </div>
     </div>
   );

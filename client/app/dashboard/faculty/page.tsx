@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Check, X, ClipboardList, Eye, RefreshCw } from "lucide-react";
+import { Users, Check, X, ClipboardList, Eye, RefreshCw, Filter } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TopicApprovalSection } from "@/components/topic-approval-section";
 import { ReviewSection } from "@/components/review-section";
+import { StatCardSkeleton, ListSkeleton, TeamProgressSkeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -35,6 +36,7 @@ import {
   ReviewMessage,
   ReviewType,
 } from "@/types";
+import { getCachedData, setCachedData, invalidateCache, CACHE_KEYS, CACHE_TTL } from "@/lib/cache";
 
 interface AllocationWithDetails extends MentorAllocation {
   group?: Group;
@@ -48,10 +50,14 @@ export default function FacultyDashboard() {
 
   const [allocations, setAllocations] = useState<AllocationWithDetails[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [teamProgress, setTeamProgress] = useState<TeamProgress[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<TeamProgress | null>(null);
   const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("topic");
+  
+  // Semester filter state
+  const [semesterFilter, setSemesterFilter] = useState<number | null>(null);
 
   // Selected team data
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
@@ -89,23 +95,45 @@ export default function FacultyDashboard() {
     loadAllocations();
   }, [user, profile, router, authLoading]);
 
-  const loadAllocations = useCallback(async () => {
+  const loadAllocations = useCallback(async (forceRefresh = false) => {
     if (!profile) return;
 
     try {
+      setInitialLoading(true);
+      
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        const cachedAllocations = getCachedData<AllocationWithDetails[]>(CACHE_KEYS.ALLOCATIONS);
+        const cachedTeamProgress = getCachedData<TeamProgress[]>(CACHE_KEYS.TEAM_PROGRESS);
+        
+        if (cachedAllocations && cachedTeamProgress) {
+          setAllocations(cachedAllocations);
+          setTeamProgress(cachedTeamProgress);
+          setInitialLoading(false);
+          return;
+        }
+      }
+      
       const mentorAllocations = await mentorAllocationApi.getForMentor();
+      
+      // Transform allocations to include flat members array
+      const transformedAllocations: AllocationWithDetails[] = mentorAllocations.map((allocation: any) => ({
+        ...allocation,
+        members: allocation.group?.members?.map((m: any) => m.profile) || [],
+      }));
 
       // Sort: pending first, then by preference rank
-      mentorAllocations.sort((a, b) => {
+      transformedAllocations.sort((a, b) => {
         if (a.status === "pending" && b.status !== "pending") return -1;
         if (a.status !== "pending" && b.status === "pending") return 1;
         return a.preferenceRank - b.preferenceRank;
       });
 
-      setAllocations(mentorAllocations);
+      setAllocations(transformedAllocations);
+      setCachedData(CACHE_KEYS.ALLOCATIONS, transformedAllocations, CACHE_TTL.MEDIUM);
 
       // Build team progress from accepted allocations
-      const acceptedAllocations = mentorAllocations.filter(
+      const acceptedAllocations = transformedAllocations.filter(
         (a) => a.status === "accepted",
       );
       const progress: TeamProgress[] = [];
@@ -152,12 +180,14 @@ export default function FacultyDashboard() {
         progress.push({
           groupId: allocation.group.id,
           groupDisplayId: allocation.group.groupId,
+          mentorId: profile.id,
+          mentorName: profile.name,
           topicApproval: {
             status: approvedTopic
               ? "approved"
               : topics.length > 0
                 ? "pending"
-                : "not_started",
+                : "pending",
             approvedTopic: approvedTopic?.title,
             totalTopicsSubmitted: topics.length,
           },
@@ -180,17 +210,27 @@ export default function FacultyDashboard() {
       }
 
       setTeamProgress(progress);
+      setCachedData(CACHE_KEYS.TEAM_PROGRESS, progress, CACHE_TTL.MEDIUM);
+      setInitialLoading(false);
     } catch (error) {
       console.error("Failed to load allocations:", error);
       showToast("Failed to load mentor allocations", "error");
+      setInitialLoading(false);
     }
   }, [profile, showToast]);
+
+  const handleRefresh = () => {
+    invalidateCache(CACHE_KEYS.ALLOCATIONS);
+    invalidateCache(CACHE_KEYS.TEAM_PROGRESS);
+    loadAllocations(true);
+    showToast("Refreshing data...", "info");
+  };
 
   const loadTeamData = useCallback(
     async (teamProg: TeamProgress) => {
       try {
         const group = await groupApi.getById(teamProg.groupId);
-        setSelectedGroup(group);
+        setSelectedGroup(group as any); // Cast to handle type mismatch from API
 
         if (group) {
           // Load topics and messages via API
@@ -329,10 +369,10 @@ export default function FacultyDashboard() {
   };
 
   // Topic Approval Handlers
-  const handleSubmitTopic = (title: string, description: string) => {
+  const handleSubmitTopic = async (title: string, description: string) => {
     if (!selectedGroup || !profile) return;
     try {
-      createTopic(selectedGroup.id, title, description, profile.id);
+      await projectTopicsApi.create({ title, description });
       showToast("Topic submitted!", "success");
       if (selectedTeam) loadTeamData(selectedTeam);
     } catch (error: any) {
@@ -516,6 +556,38 @@ export default function FacultyDashboard() {
   const acceptedTeams = allocations.filter((a) => a.status === "accepted");
   const pendingRequests = allocations.filter((a) => a.status === "pending");
   const rejectedRequests = allocations.filter((a) => a.status === "rejected");
+  
+  // Get unique semesters from all accepted teams
+  const availableSemesters = React.useMemo(() => {
+    const semesters = new Set<number>();
+    acceptedTeams.forEach((allocation) => {
+      allocation.members?.forEach((member: any) => {
+        if (member.semester) {
+          semesters.add(member.semester);
+        }
+      });
+    });
+    return Array.from(semesters).sort((a, b) => a - b);
+  }, [acceptedTeams]);
+  
+  // Filter teams by semester
+  const filteredAcceptedTeams = React.useMemo(() => {
+    if (semesterFilter === null) {
+      return acceptedTeams;
+    }
+    return acceptedTeams.filter((allocation) =>
+      allocation.members?.some((member: any) => member.semester === semesterFilter)
+    );
+  }, [acceptedTeams, semesterFilter]);
+  
+  const filteredTeamProgress = React.useMemo(() => {
+    if (semesterFilter === null) {
+      return teamProgress;
+    }
+    // Filter by groupIds that are in filtered accepted teams
+    const filteredGroupIds = new Set(filteredAcceptedTeams.map((a) => a.group?.id));
+    return teamProgress.filter((tp) => filteredGroupIds.has(tp.groupId));
+  }, [teamProgress, filteredAcceptedTeams, semesterFilter]);
 
   return (
     <DashboardLayout title="Faculty Dashboard">
@@ -533,60 +605,110 @@ export default function FacultyDashboard() {
           </div>
         )}
 
-        {/* Summary Stats */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-green-600">
-                  {acceptedTeams.length}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">My Teams</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-amber-600">
-                  {pendingRequests.length}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Pending Requests</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-gray-900">
-                  {allocations.length}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Total Requests</p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Refresh Button */}
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            size="sm"
+            disabled={initialLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${initialLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
-        {/* My Teams Section */}
-        {acceptedTeams.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>My Teams</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {acceptedTeams.map((allocation) => (
-                  <div
-                    key={allocation.id}
-                    className="border-2 border-green-200 bg-green-50 rounded-lg p-4"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          {allocation.group?.groupId || "Unknown Group"}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          Team Code: {allocation.group?.teamCode}
+        {/* Loading Skeleton */}
+        {initialLoading ? (
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-3 gap-4">
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </div>
+            <ListSkeleton items={3} />
+            <div className="space-y-3">
+              <TeamProgressSkeleton />
+              <TeamProgressSkeleton />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Summary Stats */}
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-green-600">
+                      {acceptedTeams.length}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">My Teams</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-amber-600">
+                      {pendingRequests.length}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Pending Requests</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-gray-900">
+                      {allocations.length}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Total Requests</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* My Teams Section */}
+            {acceptedTeams.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>My Teams</CardTitle>
+                  {availableSemesters.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <select
+                        value={semesterFilter ?? ""}
+                        onChange={(e) => setSemesterFilter(e.target.value ? parseInt(e.target.value) : null)}
+                        className="border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="">All Semesters</option>
+                        {availableSemesters.map((sem) => (
+                          <option key={sem} value={sem}>
+                            Semester {sem}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {filteredAcceptedTeams.length === 0 ? (
+                      <p className="text-center text-gray-500 py-4">
+                        No teams found for Semester {semesterFilter}
+                      </p>
+                    ) : filteredAcceptedTeams.map((allocation) => (
+                      <div
+                        key={allocation.id}
+                        className="border-2 border-green-200 bg-green-50 rounded-lg p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {allocation.group?.groupId || "Unknown Group"}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              Team Code: {allocation.group?.teamCode}
                         </p>
                       </div>
                       <div className="text-right">
@@ -623,7 +745,7 @@ export default function FacultyDashboard() {
         )}
 
         {/* Project Progress Section */}
-        {teamProgress.length > 0 && (
+        {filteredTeamProgress.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -633,7 +755,7 @@ export default function FacultyDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {teamProgress.map((team) => (
+                {filteredTeamProgress.map((team) => (
                   <div
                     key={team.groupId}
                     className="border border-gray-200 rounded-lg p-4 hover:border-primary/50 transition-colors"
@@ -850,6 +972,8 @@ export default function FacultyDashboard() {
             )}
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
 
       {/* Team Progress Dialog */}

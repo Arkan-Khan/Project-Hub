@@ -6,17 +6,17 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MentorOverview, MentorGroupInfo, ReviewStatus } from "@/types";
 
-// Helper to format review status
+// Helper to format review status (CSV-safe characters)
 function formatReviewStatus(
   status: ReviewStatus | null,
   progress: number | null,
 ): string {
-  if (!status || status === "not_started") return "—";
-  if (status === "completed") return "✓ Complete";
+  if (!status || status === "not_started") return "-";
+  if (status === "completed") return "Complete";
   if (status === "feedback_given") return "Feedback";
   if (status === "submitted" || status === "in_progress")
     return `${progress || 0}%`;
-  return "—";
+  return "-";
 }
 
 // Helper to format topic status
@@ -46,7 +46,8 @@ export function generateMentorOverviewCSV(mentors: MentorOverview[]): string {
     "Group ID",
     "Team Code",
     "Leader",
-    "Members",
+    "All Members",
+    "Member Count",
     "Topic Status",
     "Topic Title",
     "Review 1",
@@ -72,9 +73,15 @@ export function generateMentorOverviewCSV(mentors: MentorOverview[]): string {
         "",
         "",
         "",
+        "",
       ]);
     } else {
       mentor.assignedGroups.forEach((group, index) => {
+        // Format all members with name and roll number
+        const membersFormatted = group.members
+          .map((m) => `${m.name}${m.rollNumber ? ` (${m.rollNumber})` : ""}`)
+          .join("; ");
+        
         rows.push([
           index === 0 ? mentor.name : "",
           index === 0 ? mentor.email : "",
@@ -82,6 +89,7 @@ export function generateMentorOverviewCSV(mentors: MentorOverview[]): string {
           group.groupId,
           group.teamCode,
           group.leaderName,
+          membersFormatted,
           group.memberCount.toString(),
           formatTopicStatus(group.topicStatus),
           group.approvedTopicTitle || "",
@@ -95,7 +103,7 @@ export function generateMentorOverviewCSV(mentors: MentorOverview[]): string {
 
   // Escape CSV values
   const escapeCSV = (value: string): string => {
-    if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    if (value.includes(",") || value.includes('"') || value.includes("\n") || value.includes(";")) {
       return `"${value.replace(/"/g, '""')}"`;
     }
     return value;
@@ -106,7 +114,8 @@ export function generateMentorOverviewCSV(mentors: MentorOverview[]): string {
     ...rows.map((row) => row.map(escapeCSV).join(",")),
   ].join("\n");
 
-  return csvContent;
+  // Add UTF-8 BOM for Excel compatibility
+  return "\uFEFF" + csvContent;
 }
 
 /**
@@ -192,23 +201,33 @@ export function generateMentorOverviewPDF(
 
     if (mentor.assignedGroups.length > 0) {
       // Table for groups
-      const tableData = mentor.assignedGroups.map((group) => [
-        group.groupId,
-        group.leaderName,
-        group.memberCount.toString(),
-        formatTopicStatus(group.topicStatus),
-        formatReviewStatus(group.review1Status, group.review1Progress),
-        formatReviewStatus(group.review2Status, group.review2Progress),
-        formatReviewStatus(group.finalReviewStatus, group.finalReviewProgress),
-      ]);
+      const tableData = mentor.assignedGroups.map((group) => {
+        // Format members list for PDF
+        const membersList = group.members
+          .map((m) => `${m.name}${m.rollNumber ? ` (${m.rollNumber})` : ""}`)
+          .join(", ");
+        
+        return [
+          group.groupId,
+          group.leaderName,
+          membersList,
+          formatTopicStatus(group.topicStatus),
+          formatReviewStatus(group.review1Status, group.review1Progress),
+          formatReviewStatus(group.review2Status, group.review2Progress),
+          formatReviewStatus(group.finalReviewStatus, group.finalReviewProgress),
+        ];
+      });
 
       autoTable(doc, {
         startY: yOffset,
         head: [["Group", "Leader", "Members", "Topic", "R1", "R2", "Final"]],
         body: tableData,
         theme: "grid",
-        styles: { fontSize: 8, cellPadding: 2 },
+        styles: { fontSize: 7, cellPadding: 2 },
         headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+        columnStyles: {
+          2: { cellWidth: 50 }, // Members column wider
+        },
         margin: { left: 14, right: 14 },
         tableWidth: "auto",
       });

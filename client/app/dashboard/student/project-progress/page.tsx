@@ -27,7 +27,6 @@ import {
   ReviewMessage,
   ReviewType,
   Attachment,
-  AttachmentStage,
 } from "@/types";
 
 export default function ProjectProgressPage() {
@@ -76,7 +75,7 @@ export default function ProjectProgressPage() {
         router.push("/dashboard/student");
         return;
       }
-      setGroup(userGroup);
+      setGroup(userGroup as any); // Cast to handle type mismatch from API
 
       // Check for accepted mentor
       const statusData = await mentorAllocationApi.getStatus();
@@ -90,8 +89,8 @@ export default function ProjectProgressPage() {
       const acceptedAllocation = allocations.find(
         (a) => a.status === "accepted",
       );
-      if (acceptedAllocation) {
-        setMentor(acceptedAllocation.mentor);
+      if (acceptedAllocation && (acceptedAllocation as any).mentor) {
+        setMentor((acceptedAllocation as any).mentor);
       }
 
       // Load topics and messages
@@ -169,9 +168,9 @@ export default function ProjectProgressPage() {
   const hasApprovedTopic = topics.some((t) => t.status === "approved");
 
   // Attachment Handlers
-  const handleUploadAttachment = async (stage: AttachmentStage, file: File) => {
+  const handleUploadAttachment = async (file: File) => {
     try {
-      await attachmentsApi.upload(stage, file);
+      await attachmentsApi.upload(file);
       showToast("File uploaded successfully!", "success");
       // Reload attachments
       const groupAttachments = await attachmentsApi.getMyGroupAttachments();

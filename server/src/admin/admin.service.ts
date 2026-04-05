@@ -135,6 +135,7 @@ export class AdminService {
             name: m.profile.name,
             email: m.profile.email,
             rollNumber: m.profile.rollNumber,
+            semester: m.profile.semester,
           })),
           topicStatus,
           approvedTopicTitle: approvedTopic?.title || null,

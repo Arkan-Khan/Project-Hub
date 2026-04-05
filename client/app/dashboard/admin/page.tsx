@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Users, UserCheck, ClipboardList, Play, CheckCircle, Download, UserPlus } from "lucide-react";
+import { FileText, Users, UserCheck, ClipboardList, Play, CheckCircle, Download, UserPlus, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { StatCardSkeleton, MentorCardSkeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { 
@@ -22,6 +23,7 @@ import { MentorAllocationForm, Profile, ReviewRollout, ReviewType, MentorOvervie
 import { MentorOverviewPanel } from "@/components/mentor-overview-panel";
 import { ManualAllocationModal } from "@/components/manual-allocation-modal";
 import { exportMentorOverviewAsCSV, exportMentorOverviewAsPDF } from "@/lib/export-utils";
+import { getCachedData, setCachedData, invalidateCache, CACHE_KEYS, CACHE_TTL } from "@/lib/cache";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -32,6 +34,7 @@ export default function AdminDashboard() {
   const [facultyList, setFacultyList] = useState<Profile[]>([]);
   const [selectedMentors, setSelectedMentors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [groups, setGroups] = useState<any[]>([]);
   const [reviewRollouts, setReviewRollouts] = useState<ReviewRollout[]>([]);
   
@@ -42,6 +45,9 @@ export default function AdminDashboard() {
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Semester filter state
+  const [semesterFilter, setSemesterFilter] = useState<number | null>(null);
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -60,20 +66,38 @@ export default function AdminDashboard() {
     loadData();
   }, [user, profile, router, authLoading]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async (forceRefresh = false) => {
     if (!profile) return;
 
     try {
+      setInitialLoading(true);
+      
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        const cachedMentorOverview = getCachedData<MentorOverview[]>(CACHE_KEYS.MENTOR_OVERVIEW);
+        const cachedGroups = getCachedData<any[]>(CACHE_KEYS.GROUPS);
+        const cachedFacultyList = getCachedData<Profile[]>(CACHE_KEYS.FACULTY_LIST);
+        
+        if (cachedMentorOverview && cachedGroups && cachedFacultyList) {
+          setMentorOverview(cachedMentorOverview);
+          setGroups(cachedGroups);
+          setFacultyList(cachedFacultyList);
+          setInitialLoading(false);
+          return;
+        }
+      }
+
       // Load active form
       const form = await mentorFormApi.getActiveByDepartment(profile.department);
-      setActiveForm(form);
+      setActiveForm(form as any); // Cast to avoid type mismatch with extended type
 
       // Load faculty list
       const faculty = await profileApi.getFacultyByDepartment(profile.department);
       setFacultyList(faculty);
+      setCachedData(CACHE_KEYS.FACULTY_LIST, faculty, CACHE_TTL.LONG);
 
       if (form) {
-        setSelectedMentors(form.availableMentors);
+        setSelectedMentors(form.availableMentors.map((m) => m.id));
       }
 
       // Load groups by department with mentor details
@@ -112,6 +136,7 @@ export default function AdminDashboard() {
       }));
 
       setGroups(groupsWithDetails);
+      setCachedData(CACHE_KEYS.GROUPS, groupsWithDetails, CACHE_TTL.MEDIUM);
       
       // Load review rollouts
       const rollouts: ReviewRollout[] = [];
@@ -135,6 +160,7 @@ export default function AdminDashboard() {
       try {
         const overview = await adminApi.getMentorOverview();
         setMentorOverview(overview);
+        setCachedData(CACHE_KEYS.MENTOR_OVERVIEW, overview, CACHE_TTL.MEDIUM);
       } catch (error) {
         console.error('Error loading mentor overview:', error);
       }
@@ -151,9 +177,20 @@ export default function AdminDashboard() {
         console.error('Error loading allocation data:', error);
       }
       setOverviewLoading(false);
+      setInitialLoading(false);
     } catch (error: any) {
       console.error('Error loading admin data:', error);
+      setInitialLoading(false);
     }
+  }, [profile]);
+
+  const handleRefresh = () => {
+    // Clear cache and reload
+    invalidateCache(CACHE_KEYS.MENTOR_OVERVIEW);
+    invalidateCache(CACHE_KEYS.GROUPS);
+    invalidateCache(CACHE_KEYS.FACULTY_LIST);
+    loadData(true);
+    showToast("Refreshing data...", "info");
   };
 
   const handleManualAllocate = async (groupId: string, mentorId: string) => {
@@ -239,6 +276,15 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              onClick={handleRefresh}
+              size="sm"
+              disabled={initialLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${initialLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setShowAllocationModal(true)}
               size="sm"
               disabled={unassignedGroups.length === 0}
@@ -280,20 +326,40 @@ export default function AdminDashboard() {
           </Button>
         </div>
 
-        {/* Tabs for Overview vs Management */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="overview">Mentor & Group Overview</TabsTrigger>
-            <TabsTrigger value="management">Form & Review Management</TabsTrigger>
-          </TabsList>
+        {/* Loading skeleton */}
+        {initialLoading ? (
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-3 gap-4">
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </div>
+            <div className="space-y-4">
+              <MentorCardSkeleton />
+              <MentorCardSkeleton />
+              <MentorCardSkeleton />
+            </div>
+          </div>
+        ) : (
+          /* Tabs for Overview vs Management */
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="overview">Mentor & Group Overview</TabsTrigger>
+              <TabsTrigger value="management">Form & Review Management</TabsTrigger>
+            </TabsList>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <MentorOverviewPanel mentors={mentorOverview} loading={overviewLoading} />
-          </TabsContent>
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-6">
+              <MentorOverviewPanel 
+                mentors={mentorOverview} 
+                loading={overviewLoading}
+                semesterFilter={semesterFilter}
+                onSemesterFilterChange={setSemesterFilter}
+              />
+            </TabsContent>
 
-          {/* Management Tab */}
-          <TabsContent value="management" className="space-y-6">
+            {/* Management Tab */}
+            <TabsContent value="management" className="space-y-6">
             {/* Stats */}
             <div className="grid md:grid-cols-3 gap-4">
               <Card>
@@ -307,108 +373,35 @@ export default function AdminDashboard() {
                   </div>
                 </CardContent>
               </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <UserCheck className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {facultyList.length}
-                  </p>
-                  <p className="text-sm text-gray-600">Faculty Members</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <FileText className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {groups.filter((g) => g.hasSubmittedPreferences).length}
-                  </p>
-                  <p className="text-sm text-gray-600">Submissions</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Mentor Allocation Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Mentor Allocation Form</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activeForm ? (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                <p className="font-medium text-green-900 mb-2">
-                  ✓ Form is Currently Active
-                </p>
-                <p className="text-sm text-green-800">
-                  {selectedMentors.length} mentors available for selection
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Roll out the mentor allocation form for {profile?.department}{" "}
-                  department. Select faculty members and coordinators to be available as mentors.
-                </p>
-
-                {facultyList.length === 0 ? (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-md">
-                    <p className="text-amber-900">
-                      No mentors found in your department. Faculty must
-                      register first.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
-                      {facultyList.map((faculty) => (
-                        <label
-                          key={faculty.id}
-                          className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedMentors.includes(faculty.id)}
-                            onChange={() => handleToggleMentor(faculty.id)}
-                            className="h-4 w-4 text-primary"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{faculty.name}</p>
-                              {faculty.role === "super_admin" && (
-                                <span className="px-2 py-0.5 bg-accent/20 text-accent text-xs font-medium rounded">
-                                  Coordinator
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600">{faculty.email}</p>
-                          </div>
-                        </label>
-                      ))}
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <UserCheck className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {facultyList.length}
+                      </p>
+                      <p className="text-sm text-gray-600">Faculty Members</p>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <FileText className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {groups.filter((g) => g.mentorAssigned).length}
+                      </p>
+                      <p className="text-sm text-gray-600">Groups with Mentors</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                    <Button
-                      onClick={handleRollOutForm}
-                      disabled={loading || selectedMentors.length === 0}
-                      className="w-full"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Roll Out Mentor Allocation Form
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Review Rollout Card */}
+            {/* Review Rollout Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -526,107 +519,9 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Groups Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Groups Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {groups.length === 0 ? (
-              <p className="text-center py-8 text-gray-600">
-                No groups created yet
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 text-left">
-                      <th className="pb-2 text-sm font-medium text-gray-700">
-                        Group ID
-                      </th>
-                      <th className="pb-2 text-sm font-medium text-gray-700">
-                        Team Code
-                      </th>
-                      <th className="pb-2 text-sm font-medium text-gray-700">
-                        Leader
-                      </th>
-                      <th className="pb-2 text-sm font-medium text-gray-700">
-                        Mentor
-                      </th>
-                      <th className="pb-2 text-sm font-medium text-gray-700">
-                        Topic
-                      </th>
-                      <th className="pb-2 text-sm font-medium text-gray-700 text-center">
-                        R1
-                      </th>
-                      <th className="pb-2 text-sm font-medium text-gray-700 text-center">
-                        R2
-                      </th>
-                      <th className="pb-2 text-sm font-medium text-gray-700 text-center">
-                        Final
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groups.map((group) => (
-                      <tr key={group.id} className="border-b border-gray-100">
-                        <td className="py-3 text-sm">{group.groupId}</td>
-                        <td className="py-3 text-sm font-mono">{group.teamCode}</td>
-                        <td className="py-3 text-sm">{group.leaderName}</td>
-                        <td className="py-3 text-sm">
-                          {group.mentorAssigned || (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-sm">
-                          {group.topicApproved ? (
-                            <span className="text-green-600 truncate max-w-[150px] block" title={group.topicTitle}>
-                              ✓ {group.topicTitle?.substring(0, 20)}...
-                            </span>
-                          ) : group.mentorAssigned ? (
-                            <span className="text-amber-600">Pending</span>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-sm text-center">
-                          {group.review1Status === "completed" ? (
-                            <Badge variant="success" className="text-xs">✓</Badge>
-                          ) : group.review1Progress ? (
-                            <Badge variant="warning" className="text-xs">{group.review1Progress}%</Badge>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-sm text-center">
-                          {group.review2Status === "completed" ? (
-                            <Badge variant="success" className="text-xs">✓</Badge>
-                          ) : group.review2Progress ? (
-                            <Badge variant="warning" className="text-xs">{group.review2Progress}%</Badge>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-sm text-center">
-                          {group.finalReviewStatus === "completed" ? (
-                            <Badge variant="success" className="text-xs">✓</Badge>
-                          ) : group.finalReviewProgress ? (
-                            <Badge variant="warning" className="text-xs">{group.finalReviewProgress}%</Badge>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        )}
 
         {/* Manual Allocation Modal */}
         <ManualAllocationModal
