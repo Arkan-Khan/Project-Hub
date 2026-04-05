@@ -6,6 +6,7 @@ import {
   FileText,
   Trash2,
   Download,
+  Eye,
   AlertCircle,
   CheckCircle,
   Clock,
@@ -107,6 +108,11 @@ export function AttachmentsTab({
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleView = (fileUrl: string, filename: string) => {
+    // Open file in new tab for preview
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (loading) {
@@ -249,8 +255,16 @@ export function AttachmentsTab({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleView(attachment.fileUrl, attachment.filename)}
+                      className="p-2 hover:bg-blue-100 rounded-md transition-colors"
+                      title="View/Preview"
+                    >
+                      <Eye className="h-4 w-4 text-blue-600" />
+                    </button>
                     <a
                       href={attachment.fileUrl}
+                      download={attachment.filename}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 hover:bg-gray-200 rounded-md transition-colors"
