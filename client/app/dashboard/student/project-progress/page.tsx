@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TopicApprovalSection } from "@/components/topic-approval-section";
+import { TopicApprovalFormUpload } from "@/components/topic-approval-form-upload";
 import { ReviewSection } from "@/components/review-section";
 import { AttachmentsTab } from "@/components/attachments-tab";
 import { useAuth } from "@/lib/auth-context";
@@ -17,6 +18,7 @@ import {
   projectTopicsApi,
   reviewsApi,
   attachmentsApi,
+  topicApprovalApi,
 } from "@/lib/api";
 import {
   Group,
@@ -27,6 +29,7 @@ import {
   ReviewMessage,
   ReviewType,
   Attachment,
+  TopicApprovalDocument,
 } from "@/types";
 
 export default function ProjectProgressPage() {
@@ -64,6 +67,9 @@ export default function ProjectProgressPage() {
   // Attachments State
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+
+  // Topic Approval Document State
+  const [topicApprovalDoc, setTopicApprovalDoc] = useState<TopicApprovalDocument | null>(null);
 
   const loadData = useCallback(async () => {
     if (!profile) return;
@@ -136,6 +142,14 @@ export default function ProjectProgressPage() {
         console.error("Error loading attachments:", error);
       }
       setAttachmentsLoading(false);
+
+      // Load topic approval document
+      try {
+        const doc = await topicApprovalApi.getMyDocument();
+        setTopicApprovalDoc(doc);
+      } catch (error) {
+        console.error("Error loading topic approval doc:", error);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
       showToast("Failed to load data", "error");
@@ -166,6 +180,21 @@ export default function ProjectProgressPage() {
 
   const isLeader = group && profile && group.createdBy === profile.id;
   const hasApprovedTopic = topics.some((t) => t.status === "approved");
+  const hasTopicApprovalDoc = !!topicApprovalDoc;
+  
+  // Reviews require both approved topic AND uploaded topic approval form
+  const canAccessReviews = hasApprovedTopic && hasTopicApprovalDoc;
+
+  // Topic approval document handlers
+  const handleTopicApprovalDocChange = async () => {
+    try {
+      const doc = await topicApprovalApi.getMyDocument();
+      setTopicApprovalDoc(doc);
+      showToast(doc ? "Document uploaded!" : "Document deleted", "success");
+    } catch (error: any) {
+      showToast(error.message || "Failed to update document", "error");
+    }
+  };
 
   // Attachment Handlers
   const handleUploadAttachment = async (file: File) => {
@@ -420,13 +449,13 @@ export default function ProjectProgressPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full grid grid-cols-5">
             <TabsTrigger value="topic">Topic</TabsTrigger>
-            <TabsTrigger value="review1" disabled={!hasApprovedTopic}>
+            <TabsTrigger value="review1" disabled={!canAccessReviews}>
               Review 1
             </TabsTrigger>
             <TabsTrigger
               value="review2"
               disabled={
-                !hasApprovedTopic || review1Session?.status !== "completed"
+                !canAccessReviews || review1Session?.status !== "completed"
               }
             >
               Review 2
@@ -434,7 +463,7 @@ export default function ProjectProgressPage() {
             <TabsTrigger
               value="final"
               disabled={
-                !hasApprovedTopic || review2Session?.status !== "completed"
+                !canAccessReviews || review2Session?.status !== "completed"
               }
             >
               Final
@@ -445,7 +474,15 @@ export default function ProjectProgressPage() {
           </TabsList>
 
           {/* Topic Approval */}
-          <TabsContent value="topic">
+          <TabsContent value="topic" className="space-y-6">
+            {/* Topic Approval Form Upload */}
+            <TopicApprovalFormUpload
+              document={topicApprovalDoc}
+              isLeader={!!isLeader}
+              currentUserRole="student"
+              onDocumentChange={handleTopicApprovalDocChange}
+            />
+            
             <TopicApprovalSection
               topics={topics}
               messages={topicMessages}
@@ -474,7 +511,7 @@ export default function ProjectProgressPage() {
               currentUserName={profile.name}
               currentUserRole="student"
               isRolledOut={review1RolledOut}
-              isUnlocked={hasApprovedTopic}
+              isUnlocked={canAccessReviews}
               isLeader={isLeader ?? false}
               onSubmitProgress={(p, d) =>
                 handleSubmitProgress("review_1", p, d)
@@ -504,7 +541,7 @@ export default function ProjectProgressPage() {
               currentUserName={profile.name}
               currentUserRole="student"
               isRolledOut={review2RolledOut}
-              isUnlocked={review1Session?.status === "completed"}
+              isUnlocked={canAccessReviews && review1Session?.status === "completed"}
               isLeader={isLeader ?? false}
               onSubmitProgress={(p, d) =>
                 handleSubmitProgress("review_2", p, d)
@@ -534,7 +571,7 @@ export default function ProjectProgressPage() {
               currentUserName={profile.name}
               currentUserRole="student"
               isRolledOut={finalReviewRolledOut}
-              isUnlocked={review2Session?.status === "completed"}
+              isUnlocked={canAccessReviews && review2Session?.status === "completed"}
               isLeader={isLeader ?? false}
               onSubmitProgress={(p, d) =>
                 handleSubmitProgress("final_review", p, d)

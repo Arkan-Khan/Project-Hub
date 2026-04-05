@@ -1,0 +1,23 @@
+# Windsurf/Codeium Rules
+
+**IMPORTANT: Before exploring the codebase, read the `.ai/` folder first!**
+
+## Documentation Location
+
+All project documentation is in `.ai/`:
+
+- `README.md` - Quick start and overview
+- `PROJECT_OVERVIEW.md` - Architecture details
+- `BACKEND.md` - NestJS patterns and modules
+- `FRONTEND.md` - Next.js structure and components
+- `API_REFERENCE.md` - Endpoint documentation
+- `FILE_MAP.md` - File locations
+- `RECENT_CHANGES.md` - Latest updates
+
+## Tech Stack
+
+- Backend: NestJS + Prisma + PostgreSQL
+- Frontend: Next.js 14 + shadcn/ui + TailwindCSS
+- Auth: Clerk
+
+## Read `.ai/` First - Save Tokens!

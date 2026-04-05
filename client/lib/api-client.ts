@@ -48,11 +48,6 @@ async function apiFetch<T>(
   });
 
   if (!response.ok) {
-    // If unauthorized, clear the token
-    if (response.status === 401) {
-      removeToken();
-    }
-    
     const error = await response.json().catch(() => ({
       message: response.statusText,
     }));
@@ -89,10 +84,6 @@ async function apiUpload<T>(
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      removeToken();
-    }
-    
     const error = await response.json().catch(() => ({
       message: response.statusText,
     }));

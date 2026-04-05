@@ -7,15 +7,11 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TopicApprovalSection } from "@/components/topic-approval-section";
 import { ReviewSection } from "@/components/review-section";
+import { ReviewEvaluationForm } from "@/components/review-evaluation-form";
+import { TopicApprovalFormUpload } from "@/components/topic-approval-form-upload";
 import { StatCardSkeleton, ListSkeleton, TeamProgressSkeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
@@ -24,6 +20,8 @@ import {
   groupApi,
   projectTopicsApi,
   reviewsApi,
+  evaluationsApi,
+  topicApprovalApi,
 } from "@/lib/api";
 import {
   MentorAllocation,
@@ -35,6 +33,7 @@ import {
   ReviewSession as ReviewSessionType,
   ReviewMessage,
   ReviewType,
+  ReviewEvaluation,
 } from "@/types";
 import { getCachedData, setCachedData, invalidateCache, CACHE_KEYS, CACHE_TTL } from "@/lib/cache";
 
@@ -53,7 +52,6 @@ export default function FacultyDashboard() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [teamProgress, setTeamProgress] = useState<TeamProgress[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<TeamProgress | null>(null);
-  const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("topic");
   
   // Semester filter state
@@ -77,6 +75,14 @@ export default function FacultyDashboard() {
   const [review1RolledOut, setReview1RolledOut] = useState(false);
   const [review2RolledOut, setReview2RolledOut] = useState(false);
   const [finalReviewRolledOut, setFinalReviewRolledOut] = useState(false);
+
+  // Evaluation form state
+  const [evaluationReviewType, setEvaluationReviewType] = useState<ReviewType>("review_1");
+  const [evaluationSessionId, setEvaluationSessionId] = useState<string>("");
+  const [showEmbeddedEvaluation, setShowEmbeddedEvaluation] = useState(false);
+  // Topic approval document state
+  const [hasTopicApprovalDoc, setHasTopicApprovalDoc] = useState(false);
+  const [topicApprovalDoc, setTopicApprovalDoc] = useState<any | null>(null);
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -249,6 +255,17 @@ export default function FacultyDashboard() {
           setTopics(topicsData);
           setTopicMessages(messagesData);
 
+          // Load topic approval document
+          try {
+            const doc = await topicApprovalApi.getByGroupId(group.id);
+            setTopicApprovalDoc(doc);
+            setHasTopicApprovalDoc(!!doc);
+          } catch (error) {
+            console.error("Failed to check topic approval doc:", error);
+            setTopicApprovalDoc(null);
+            setHasTopicApprovalDoc(false);
+          }
+
           // Load review rollouts
           try {
             const review1Rollout = await reviewsApi.getRollout("review_1");
@@ -328,10 +345,14 @@ export default function FacultyDashboard() {
   );
 
   const openTeamDialog = (team: TeamProgress) => {
-    setSelectedTeam(team);
-    loadTeamData(team);
-    setActiveTab("topic");
-    setShowTeamDialog(true);
+    router.push(`/dashboard/faculty/team/${team.groupId}?tab=topic`);
+  };
+
+  const closeTeamView = () => {
+    setSelectedTeam(null);
+    setSelectedGroup(null);
+    setShowEmbeddedEvaluation(false);
+    setEvaluationSessionId("");
   };
 
   const refreshTeamData = () => {
@@ -490,9 +511,31 @@ export default function FacultyDashboard() {
       return;
     }
 
+    // For R1 and R2, open evaluation form first before marking complete
+    if (reviewType === "review_1" || reviewType === "review_2") {
+      setEvaluationReviewType(reviewType);
+      setEvaluationSessionId(session.id);
+      setShowEmbeddedEvaluation(true);
+      return;
+    }
+
+    // For final review, just mark complete without evaluation form
     try {
       await reviewsApi.markComplete(session.id);
       showToast("Review marked complete!", "success");
+      if (selectedTeam) await loadTeamData(selectedTeam);
+      loadAllocations();
+    } catch (error: any) {
+      showToast(error.message || "Failed to mark complete", "error");
+    }
+  };
+
+  const handleEvaluationSubmit = async () => {
+    // After evaluation submitted, mark the review as complete
+    try {
+      await reviewsApi.markComplete(evaluationSessionId);
+      showToast("Evaluation submitted and review marked complete!", "success");
+      setShowEmbeddedEvaluation(false);
       if (selectedTeam) await loadTeamData(selectedTeam);
       loadAllocations();
     } catch (error: any) {
@@ -976,150 +1019,9 @@ export default function FacultyDashboard() {
         )}
       </div>
 
-      {/* Team Progress Dialog */}
-      <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>{selectedTeam?.groupDisplayId} - Project Progress</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={refreshTeamData}
-                className="gap-1"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
+      {/* Team details now open on dedicated route: /dashboard/faculty/team/[groupId] */}
 
-          {selectedTeam && selectedGroup && profile && (
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full grid grid-cols-4">
-                <TabsTrigger value="topic">Topic</TabsTrigger>
-                <TabsTrigger value="review1" disabled={!hasApprovedTopic}>
-                  R1
-                </TabsTrigger>
-                <TabsTrigger
-                  value="review2"
-                  disabled={
-                    !hasApprovedTopic || review1Session?.status !== "completed"
-                  }
-                >
-                  R2
-                </TabsTrigger>
-                <TabsTrigger
-                  value="final"
-                  disabled={
-                    !hasApprovedTopic || review2Session?.status !== "completed"
-                  }
-                >
-                  Final
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="topic">
-                <TopicApprovalSection
-                  topics={topics}
-                  messages={topicMessages}
-                  currentUserId={profile.id}
-                  currentUserName={profile.name}
-                  currentUserRole="faculty"
-                  groupId={selectedGroup.id}
-                  isLeader={false}
-                  onSubmitTopic={handleSubmitTopic}
-                  onApproveTopic={handleApproveTopic}
-                  onRejectTopic={handleRejectTopic}
-                  onRequestRevision={handleRequestRevision}
-                  onSendMessage={handleSendTopicMessage}
-                  meetLink={selectedGroup.meetLink ?? undefined}
-                />
-              </TabsContent>
-
-              <TabsContent value="review1">
-                <ReviewSection
-                  reviewType="review_1"
-                  session={review1Session}
-                  messages={review1Messages}
-                  currentUserId={profile.id}
-                  currentUserName={profile.name}
-                  currentUserRole="faculty"
-                  isRolledOut={review1RolledOut}
-                  isUnlocked={hasApprovedTopic}
-                  isLeader={false}
-                  onSubmitProgress={(p, d) =>
-                    handleSubmitProgress("review_1", p, d)
-                  }
-                  onUpdateProgress={(p, d) =>
-                    handleUpdateProgress("review_1", p, d)
-                  }
-                  onSubmitFeedback={(f) => handleSubmitFeedback("review_1", f)}
-                  onSendMessage={(c, l) =>
-                    handleSendReviewMessage("review_1", c, l)
-                  }
-                  onMarkComplete={() => handleMarkComplete("review_1")}
-                  meetLink={review1Session?.meetLink ?? undefined}
-                />
-              </TabsContent>
-
-              <TabsContent value="review2">
-                <ReviewSection
-                  reviewType="review_2"
-                  session={review2Session}
-                  messages={review2Messages}
-                  currentUserId={profile.id}
-                  currentUserName={profile.name}
-                  currentUserRole="faculty"
-                  isRolledOut={review2RolledOut}
-                  isUnlocked={review1Session?.status === "completed"}
-                  isLeader={false}
-                  onSubmitProgress={(p, d) =>
-                    handleSubmitProgress("review_2", p, d)
-                  }
-                  onUpdateProgress={(p, d) =>
-                    handleUpdateProgress("review_2", p, d)
-                  }
-                  onSubmitFeedback={(f) => handleSubmitFeedback("review_2", f)}
-                  onSendMessage={(c, l) =>
-                    handleSendReviewMessage("review_2", c, l)
-                  }
-                  onMarkComplete={() => handleMarkComplete("review_2")}
-                  meetLink={review2Session?.meetLink ?? undefined}
-                />
-              </TabsContent>
-
-              <TabsContent value="final">
-                <ReviewSection
-                  reviewType="final_review"
-                  session={finalReviewSession}
-                  messages={finalReviewMessages}
-                  currentUserId={profile.id}
-                  currentUserName={profile.name}
-                  currentUserRole="faculty"
-                  isRolledOut={finalReviewRolledOut}
-                  isUnlocked={review2Session?.status === "completed"}
-                  isLeader={false}
-                  onSubmitProgress={(p, d) =>
-                    handleSubmitProgress("final_review", p, d)
-                  }
-                  onUpdateProgress={(p, d) =>
-                    handleUpdateProgress("final_review", p, d)
-                  }
-                  onSubmitFeedback={(f) =>
-                    handleSubmitFeedback("final_review", f)
-                  }
-                  onSendMessage={(c, l) =>
-                    handleSendReviewMessage("final_review", c, l)
-                  }
-                  onMarkComplete={() => handleMarkComplete("final_review")}
-                  meetLink={finalReviewSession?.meetLink ?? undefined}
-                />
-              </TabsContent>
-            </Tabs>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Keep dialog state variable for compatibility, but UI now embedded in R1/R2 tabs */}
     </DashboardLayout>
   );
 }

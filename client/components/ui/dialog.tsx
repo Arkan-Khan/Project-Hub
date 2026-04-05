@@ -71,6 +71,7 @@ interface DialogContentProps {
 
 function DialogContent({ children, className = "" }: DialogContentProps) {
   const { open, onOpenChange } = useDialogContext();
+  const isFullscreen = className.includes("dialog-fullscreen");
 
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -100,9 +101,19 @@ function DialogContent({ children, className = "" }: DialogContentProps) {
         onClick={() => onOpenChange(false)}
       />
       {/* Content */}
-      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 p-4">
+      <div
+        className={
+          isFullscreen
+            ? "fixed inset-0 z-50"
+            : "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 p-4"
+        }
+      >
         <div
-          className={`relative bg-white rounded-lg shadow-lg border border-gray-200 max-h-[85vh] overflow-auto p-6 ${className}`}
+          className={
+            isFullscreen
+              ? `relative h-screen w-screen bg-white overflow-y-auto ${className}`
+              : `relative bg-white rounded-lg shadow-lg border border-gray-200 max-h-[85vh] overflow-auto p-6 ${className}`
+          }
         >
           {/* Close button */}
           <button

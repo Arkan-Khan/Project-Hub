@@ -1,6 +1,19 @@
 # Project Hub - AI Agent Documentation
 
-This folder contains documentation for AI coding assistants (GitHub Copilot, Cursor, Claude, etc.) to quickly understand the codebase without extensive exploration.
+> **🚀 AI AGENTS: START HERE!**
+> 
+> This folder is your primary reference. Read this documentation BEFORE exploring the codebase.
+> You will save significant time and tokens by reading these docs first.
+
+This folder contains comprehensive documentation for AI coding assistants (GitHub Copilot, Cursor, Claude, etc.) to quickly understand the codebase without extensive exploration.
+
+## Priority Reading Order
+
+1. **This file** - Quick overview (you're here)
+2. **[Recent Changes](./RECENT_CHANGES.md)** - Latest features and modifications
+3. **[File Map](./FILE_MAP.md)** - Find any file quickly
+4. **[API Reference](./API_REFERENCE.md)** - All endpoints documented
+5. **[Backend Guide](./BACKEND.md)** / **[Frontend Guide](./FRONTEND.md)** - As needed
 
 ## Quick Links
 

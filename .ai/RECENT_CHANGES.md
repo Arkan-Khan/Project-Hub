@@ -1,7 +1,149 @@
-# Recent Changes - Dashboard Fixes & Performance (April 2026)
+# Recent Changes - Topic Approval & Evaluation Forms (April 2026)
 
 ## Overview
-Comprehensive improvements to Project Hub dashboards addressing UX issues, performance bottlenecks, and feature gaps. **11 of 12 planned changes completed** with full TypeScript compilation and database migration.
+Added Topic Approval Document upload system and Review Evaluation Forms for faculty grading. This builds on previous dashboard fixes and performance improvements.
+
+---
+
+## 🆕 Latest: Topic Approval & Evaluation System (April 5, 2026)
+
+### New Database Models (Migration: `20260405174306_evaluation_forms`)
+
+**TopicApprovalDocument** - Signed form uploaded by group leader
+```prisma
+model TopicApprovalDocument {
+  id          String   @id @default(cuid())
+  groupId     String   @unique      // One doc per group
+  filename    String
+  fileUrl     String
+  uploaderId  String
+  uploadedAt  DateTime @default(now())
+}
+```
+
+**ReviewEvaluation** - Faculty fills this when completing R1/R2
+```prisma
+model ReviewEvaluation {
+  id              String   @id @default(cuid())
+  sessionId       String   @unique
+  evaluatorId     String   // Faculty who filled it
+  totalMarks      Int
+  maxMarks        Int
+  remarks         String?
+  paperPublicationStatus String? // R1 only
+  submittedAt     DateTime @default(now())
+  
+  studentGrades   StudentGrade[]
+}
+```
+
+**StudentGrade** - Per-student marks
+```prisma
+model StudentGrade {
+  id              String   @id @default(cuid())
+  evaluationId    String
+  studentId       String
+  progressMarks   Int?     // R1: 10
+  contributionMarks Int?   // R1: 10
+  techUsageMarks  Int?     // R2: 5
+  // ... more fields
+  totalMarks      Int
+}
+```
+
+### New Backend Modules
+
+**Topic Approval Module** (`server/src/topic-approval/`)
+- POST `/topic-approval/upload` - Upload signed form (multipart)
+- GET `/topic-approval/my-document` - Get user's group doc
+- GET `/topic-approval/group/:id` - Get by group ID
+- GET `/topic-approval/exists/:groupId` - Check existence
+- DELETE `/topic-approval/:id` - Delete document
+- GET `/topic-approval/template` - Download blank form
+
+**Evaluations Module** (`server/src/evaluations/`)
+- POST `/evaluations` - Create evaluation with grades
+- GET `/evaluations/prefill/:sessionId` - Get form prefill data
+- GET `/evaluations/session/:id` - Get by session ID
+- GET `/evaluations/group/:id` - Get all for group
+- GET `/evaluations` - Get all (admin only)
+
+### New Frontend Components
+
+**TopicApprovalFormUpload** (`client/components/topic-approval-form-upload.tsx`)
+- Download template button
+- File upload (PDF, Word, images - max 10MB)
+- View uploaded document (eye icon)
+- Delete functionality (leader only)
+- Status indicators
+
+**ReviewEvaluationForm** (`client/components/review-evaluation-form.tsx`)
+- Dialog form for R1/R2 grading (500+ lines)
+- Different mark fields based on review type
+- R1: Progress (10), Contribution (10), Paper Publication (5) = 25 max
+- R2: Tech (5), Innovation (5), Presentation (5), Project Activity (5), Synopsis (5) = 25 max
+- Pre-fills group info, mentor, topic, members
+- Student grading table with roll numbers
+
+### Gating Logic
+
+Reviews are now gated by BOTH topic approval AND uploaded signed document:
+```typescript
+const canAccessReviews = hasApprovedTopic && hasTopicApprovalDoc;
+
+// Review 1: canAccessReviews
+// Review 2: canAccessReviews && review1Session?.status === "completed"
+// Final:    canAccessReviews && review2Session?.status === "completed"
+```
+
+### Template File
+
+- Stored at: `server/assets/TE Major Project Topic Approval Form.docx`
+- Downloaded via: GET `/topic-approval/template`
+
+### Integration Points
+
+**Student Dashboard** (`client/app/dashboard/student/project-progress/page.tsx`)
+- Topic tab includes TopicApprovalFormUpload component
+- Review tabs disabled until both topic approved AND document uploaded
+- Visual indicators for upload status
+
+**Faculty Dashboard** (`client/app/dashboard/faculty/page.tsx`)
+- Can view topic approval documents (read-only mode)
+- Mark Complete button triggers ReviewEvaluationForm dialog for R1/R2
+- Final review doesn't require evaluation form
+- Evaluation auto-loads if already exists for session
+
+**Admin Dashboard** (`client/app/dashboard/admin/page.tsx`)
+- New "Review Evaluations" tab (3rd tab)
+- Displays all submitted evaluations with grades
+- Shows student-wise marks breakdown
+- Badge indicating pass/fail based on threshold
+
+### Seed Data Updated
+
+`server/seed-demo-data.sql` now includes:
+- 2 topic approval documents (IT01, IT02)
+- 2 review evaluations (IT01 R1 and R2)
+- 6 student grade records (3 students × 2 reviews)
+
+---
+
+## 🛠️ AI Agent Configuration Files (NEW)
+
+To prevent token waste on repeated codebase exploration:
+
+- `.github/copilot-instructions.md` - GitHub Copilot config
+- `.cursorrules` - Cursor IDE rules
+- `.windsurfrules` - Windsurf/Codeium rules  
+- `CLAUDE.md` - Claude instructions
+- `.ai/README.md` - Updated with priority reading order
+
+All agents now directed to read `.ai/` folder FIRST before exploring codebase.
+
+---
+
+## Previous Changes (Still Active)
 
 ---
 

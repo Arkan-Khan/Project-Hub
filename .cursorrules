@@ -1,0 +1,34 @@
+# Cursor Rules - Project Hub
+
+**IMPORTANT: Before exploring the codebase, read the `.ai/` folder first!**
+
+This project has comprehensive documentation in the `.ai/` directory:
+
+- `.ai/README.md` - Project overview and quick reference
+- `.ai/PROJECT_OVERVIEW.md` - Full system architecture  
+- `.ai/BACKEND.md` - NestJS API structure, modules, services
+- `.ai/FRONTEND.md` - Next.js pages, components, state management
+- `.ai/API_REFERENCE.md` - All endpoints documented
+- `.ai/FILE_MAP.md` - Directory structure and file purposes
+- `.ai/RECENT_CHANGES.md` - Latest features and modifications
+
+## Rules
+
+1. Always read `.ai/README.md` before making changes
+2. Check `.ai/RECENT_CHANGES.md` for latest state
+3. Use `.ai/FILE_MAP.md` to locate files quickly
+4. Follow existing patterns documented in `.ai/BACKEND.md` and `.ai/FRONTEND.md`
+
+## Tech Stack
+
+- **Backend**: NestJS + Prisma + PostgreSQL
+- **Frontend**: Next.js 14 (App Router) + shadcn/ui + TailwindCSS
+- **Auth**: Clerk
+
+## Key Conventions
+
+- Use barrel exports in services
+- API functions in `client/lib/api.ts`
+- Types in `client/types/index.ts`
+- Components in `client/components/`
+- Dashboard pages follow `/dashboard/[role]/[feature]/page.tsx` pattern

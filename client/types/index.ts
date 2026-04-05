@@ -279,3 +279,89 @@ export interface Attachment {
 
 export const MAX_ATTACHMENTS_PER_GROUP = 5;
 export const MAX_FILE_SIZE_MB = 5;
+
+// ============================================
+// Topic Approval Document Types
+// ============================================
+
+export interface TopicApprovalDocument {
+  id: string;
+  groupId: string;
+  filename: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  uploader?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+// ============================================
+// Review Evaluation Types
+// ============================================
+
+export interface StudentGrade {
+  id: string;
+  evaluationId: string;
+  profileId: string;
+  studentName: string;
+  rollNumber: string;
+  // Review 1 grades
+  progressMarks: number | null;
+  contributionMarks: number | null;
+  publicationMarks: number | null;
+  // Review 2 grades
+  techUsageMarks: number | null;
+  innovationMarks: number | null;
+  presentationMarks: number | null;
+  activityMarks: number | null;
+  synopsisMarks: number | null;
+  // Total
+  totalMarks: number;
+  student?: {
+    id: string;
+    name: string;
+    email: string;
+    rollNumber: string | null;
+  };
+}
+
+export interface ReviewEvaluation {
+  id: string;
+  sessionId: string;
+  groupId: string;
+  reviewType: ReviewType;
+  evaluationDate: string;
+  division: string;
+  projectGuide: string;
+  projectTitle: string;
+  // Review 1 specific
+  projectCategory: string | null;
+  projectType: string | null;
+  // Review 2 specific
+  projectDomain: string | null;
+  qualityGrade: string | null;
+  projectNature: string | null;
+  // Common
+  completionPercentage: number;
+  remarks: string | null;
+  filledBy: string;
+  filledAt: string;
+  // Relations
+  studentGrades: StudentGrade[];
+  mentor?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  group?: {
+    id: string;
+    groupId: string;
+    teamCode: string;
+    department?: Department;
+  };
+}

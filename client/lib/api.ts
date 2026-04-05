@@ -521,3 +521,116 @@ export const attachmentsApi = {
     return api.delete<{ message: string }>(`/attachments/${id}`);
   },
 };
+
+// ============ TOPIC APPROVAL DOCUMENT API ============
+
+import { TopicApprovalDocument } from "@/types";
+
+export const topicApprovalApi = {
+  upload: async (file: File): Promise<TopicApprovalDocument> => {
+    return api.upload<TopicApprovalDocument>("/topic-approval/upload", file);
+  },
+
+  getMyDocument: async (): Promise<TopicApprovalDocument | null> => {
+    return api.get<TopicApprovalDocument | null>("/topic-approval/my-document");
+  },
+
+  getByGroupId: async (groupId: string): Promise<TopicApprovalDocument | null> => {
+    return api.get<TopicApprovalDocument | null>(`/topic-approval/group/${groupId}`);
+  },
+
+  checkExists: async (groupId: string): Promise<{ exists: boolean }> => {
+    return api.get<{ exists: boolean }>(`/topic-approval/exists/${groupId}`);
+  },
+
+  delete: async (): Promise<{ success: boolean }> => {
+    return api.delete<{ success: boolean }>("/topic-approval");
+  },
+
+  getTemplateUrl: (): string => {
+    // Return static file from public folder (no auth needed)
+    return "/assets/TE Major Project Topic Approval Form.docx";
+  },
+};
+
+// ============ EVALUATIONS API ============
+
+import { ReviewEvaluation, StudentGrade, ReviewType as RT } from "@/types";
+
+export interface StudentGradeInput {
+  profileId: string;
+  studentName: string;
+  rollNumber: string;
+  // Review 1 grades
+  progressMarks?: number;
+  contributionMarks?: number;
+  publicationMarks?: number;
+  // Review 2 grades
+  techUsageMarks?: number;
+  innovationMarks?: number;
+  presentationMarks?: number;
+  activityMarks?: number;
+  synopsisMarks?: number;
+}
+
+export interface CreateEvaluationRequest {
+  sessionId: string;
+  groupId: string;
+  reviewType: RT;
+  evaluationDate: string;
+  division: string;
+  projectGuide: string;
+  projectTitle: string;
+  projectCategory?: string;
+  projectType?: string;
+  projectDomain?: string;
+  qualityGrade?: string;
+  projectNature?: string;
+  completionPercentage: number;
+  remarks?: string;
+  studentGrades: StudentGradeInput[];
+}
+
+export interface EvaluationPreFillData {
+  sessionId: string;
+  groupId: string;
+  groupDisplayId: string;
+  teamCode: string;
+  reviewType: RT;
+  projectGuide: string;
+  projectTitle: string;
+  completionPercentage: number;
+  members: Array<{
+    profileId: string;
+    name: string;
+    email: string;
+    rollNumber: string;
+    semester: number | null;
+  }>;
+}
+
+export const evaluationsApi = {
+  create: async (data: CreateEvaluationRequest): Promise<ReviewEvaluation> => {
+    return api.post<ReviewEvaluation>("/evaluations", data);
+  },
+
+  getPreFillData: async (sessionId: string): Promise<EvaluationPreFillData> => {
+    return api.get<EvaluationPreFillData>(`/evaluations/prefill/${sessionId}`);
+  },
+
+  getBySessionId: async (sessionId: string): Promise<ReviewEvaluation | null> => {
+    return api.get<ReviewEvaluation | null>(`/evaluations/session/${sessionId}`);
+  },
+
+  getByGroupId: async (groupId: string): Promise<ReviewEvaluation[]> => {
+    return api.get<ReviewEvaluation[]>(`/evaluations/group/${groupId}`);
+  },
+
+  getAll: async (filters?: { reviewType?: RT; department?: string }): Promise<ReviewEvaluation[]> => {
+    const params = new URLSearchParams();
+    if (filters?.reviewType) params.append("reviewType", filters.reviewType);
+    if (filters?.department) params.append("department", filters.department);
+    const queryString = params.toString();
+    return api.get<ReviewEvaluation[]>(`/evaluations/admin${queryString ? `?${queryString}` : ""}`);
+  },
+};

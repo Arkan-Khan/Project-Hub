@@ -8,6 +8,9 @@
 -- =====================================================
 
 -- Clear existing data (in reverse order of dependencies)
+DELETE FROM "StudentGrade";
+DELETE FROM "ReviewEvaluation";
+DELETE FROM "TopicApprovalDocument";
 DELETE FROM "Attachment";
 DELETE FROM "ReviewMessage";
 DELETE FROM "ReviewSession";
@@ -543,7 +546,163 @@ SELECT 'Review Sessions', COUNT(*) FROM "ReviewSession"
 UNION ALL
 SELECT 'Review Messages', COUNT(*) FROM "ReviewMessage"
 UNION ALL
-SELECT 'Attachments', COUNT(*) FROM "Attachment";
+SELECT 'Attachments', COUNT(*) FROM "Attachment"
+UNION ALL
+SELECT 'Topic Approval Docs', COUNT(*) FROM "TopicApprovalDocument"
+UNION ALL
+SELECT 'Review Evaluations', COUNT(*) FROM "ReviewEvaluation"
+UNION ALL
+SELECT 'Student Grades', COUNT(*) FROM "StudentGrade";
+
+-- =====================================================
+-- TOPIC APPROVAL DOCUMENTS (Sample uploaded forms)
+-- =====================================================
+
+-- IT01 has uploaded their topic approval document
+INSERT INTO "TopicApprovalDocument" (id, "groupId", filename, "fileUrl", "uploaderId", "uploadedAt")
+SELECT 
+  'doc-it01',
+  g.id,
+  'Topic_Approval_IT01_Signed.pdf',
+  'https://example.com/uploads/topic-approval-it01.pdf',
+  g."createdBy",
+  '2025-11-05 14:30:00'
+FROM "Group" g
+WHERE g."groupId" = 'IT01';
+
+-- IT02 has uploaded their topic approval document
+INSERT INTO "TopicApprovalDocument" (id, "groupId", filename, "fileUrl", "uploaderId", "uploadedAt")
+SELECT 
+  'doc-it02',
+  g.id,
+  'Topic_Approval_IT02_Signed.pdf',
+  'https://example.com/uploads/topic-approval-it02.pdf',
+  g."createdBy",
+  '2025-11-06 09:15:00'
+FROM "Group" g
+WHERE g."groupId" = 'IT02';
+
+-- =====================================================
+-- REVIEW EVALUATIONS (Sample faculty grading forms)
+-- =====================================================
+
+-- Review 1 Evaluation for IT01 by Faculty 1
+INSERT INTO "ReviewEvaluation" (id, "sessionId", "evaluatorId", "totalMarks", "maxMarks", remarks, "paperPublicationStatus", "submittedAt")
+SELECT 
+  'eval-r1-it01',
+  rs.id,
+  'profile-faculty-1',
+  22,
+  25,
+  'Excellent progress. Team is well-coordinated and on track.',
+  'In Progress - Submitted to IEEE Conference',
+  '2025-11-20 16:45:00'
+FROM "ReviewSession" rs
+JOIN "Group" g ON rs."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND rs."reviewType" = 'review_1';
+
+-- Student Grades for IT01 Review 1
+INSERT INTO "StudentGrade" (id, "evaluationId", "studentId", "progressMarks", "contributionMarks", "totalMarks")
+SELECT 
+  'grade-r1-it01-s1',
+  'eval-r1-it01',
+  p.id,
+  9,
+  8,
+  22
+FROM "Profile" p
+JOIN "GroupMember" gm ON p.id = gm."profileId"
+JOIN "Group" g ON gm."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND p."rollNumber" = 'IT2021001'
+UNION ALL
+SELECT 
+  'grade-r1-it01-s2',
+  'eval-r1-it01',
+  p.id,
+  9,
+  8,
+  22
+FROM "Profile" p
+JOIN "GroupMember" gm ON p.id = gm."profileId"
+JOIN "Group" g ON gm."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND p."rollNumber" = 'IT2021002'
+UNION ALL
+SELECT 
+  'grade-r1-it01-s3',
+  'eval-r1-it01',
+  p.id,
+  9,
+  8,
+  22
+FROM "Profile" p
+JOIN "GroupMember" gm ON p.id = gm."profileId"
+JOIN "Group" g ON gm."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND p."rollNumber" = 'IT2021003';
+
+-- Review 2 Evaluation for IT01 by Faculty 1
+INSERT INTO "ReviewEvaluation" (id, "sessionId", "evaluatorId", "totalMarks", "maxMarks", remarks, "submittedAt")
+SELECT 
+  'eval-r2-it01',
+  rs.id,
+  'profile-faculty-1',
+  23,
+  25,
+  'Outstanding presentation. Implementation is innovative and well-executed.',
+  '2025-12-15 17:30:00'
+FROM "ReviewSession" rs
+JOIN "Group" g ON rs."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND rs."reviewType" = 'review_2';
+
+-- Student Grades for IT01 Review 2
+INSERT INTO "StudentGrade" (id, "evaluationId", "studentId", "techUsageMarks", "innovativenessMarks", "presentationMarks", "projectActivityMarks", "synopsisMarks", "totalMarks")
+SELECT 
+  'grade-r2-it01-s1',
+  'eval-r2-it01',
+  p.id,
+  5,
+  5,
+  4,
+  5,
+  4,
+  23
+FROM "Profile" p
+JOIN "GroupMember" gm ON p.id = gm."profileId"
+JOIN "Group" g ON gm."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND p."rollNumber" = 'IT2021001'
+UNION ALL
+SELECT 
+  'grade-r2-it01-s2',
+  'eval-r2-it01',
+  p.id,
+  5,
+  5,
+  4,
+  5,
+  4,
+  23
+FROM "Profile" p
+JOIN "GroupMember" gm ON p.id = gm."profileId"
+JOIN "Group" g ON gm."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND p."rollNumber" = 'IT2021002'
+UNION ALL
+SELECT 
+  'grade-r2-it01-s3',
+  'eval-r2-it01',
+  p.id,
+  5,
+  5,
+  4,
+  5,
+  4,
+  23
+FROM "Profile" p
+JOIN "GroupMember" gm ON p.id = gm."profileId"
+JOIN "Group" g ON gm."groupId" = g.id
+WHERE g."groupId" = 'IT01' AND p."rollNumber" = 'IT2021003';
+
+-- =====================================================
+-- VERIFICATION QUERIES
+-- =====================================================
 
 -- Show mentor overview summary
 SELECT 

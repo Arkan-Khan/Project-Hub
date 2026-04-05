@@ -18,8 +18,9 @@ import {
   reviewsApi,
   projectTopicsApi,
   adminApi,
+  evaluationsApi,
 } from "@/lib/api";
-import { MentorAllocationForm, Profile, ReviewRollout, ReviewType, MentorOverview, UnassignedGroup, AvailableMentor } from "@/types";
+import { MentorAllocationForm, Profile, ReviewRollout, ReviewType, MentorOverview, UnassignedGroup, AvailableMentor, ReviewEvaluation } from "@/types";
 import { MentorOverviewPanel } from "@/components/mentor-overview-panel";
 import { ManualAllocationModal } from "@/components/manual-allocation-modal";
 import { exportMentorOverviewAsCSV, exportMentorOverviewAsPDF } from "@/lib/export-utils";
@@ -48,6 +49,10 @@ export default function AdminDashboard() {
   
   // Semester filter state
   const [semesterFilter, setSemesterFilter] = useState<number | null>(null);
+
+  // Evaluations state
+  const [evaluations, setEvaluations] = useState<ReviewEvaluation[]>([]);
+  const [evaluationsLoading, setEvaluationsLoading] = useState(false);
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -184,12 +189,35 @@ export default function AdminDashboard() {
     }
   }, [profile]);
 
+  const loadEvaluations = useCallback(async () => {
+    try {
+      setEvaluationsLoading(true);
+      const allEvaluations = await evaluationsApi.getAll();
+      setEvaluations(allEvaluations);
+    } catch (error) {
+      console.error("Failed to load evaluations:", error);
+      showToast("Failed to load evaluations", "error");
+    } finally {
+      setEvaluationsLoading(false);
+    }
+  }, [showToast]);
+
+  // Load evaluations when evaluations tab is active
+  useEffect(() => {
+    if (activeTab === "evaluations" && evaluations.length === 0) {
+      loadEvaluations();
+    }
+  }, [activeTab, evaluations.length, loadEvaluations]);
+
   const handleRefresh = () => {
     // Clear cache and reload
     invalidateCache(CACHE_KEYS.MENTOR_OVERVIEW);
     invalidateCache(CACHE_KEYS.GROUPS);
     invalidateCache(CACHE_KEYS.FACULTY_LIST);
     loadData(true);
+    if (activeTab === "evaluations") {
+      loadEvaluations();
+    }
     showToast("Refreshing data...", "info");
   };
 
@@ -343,9 +371,10 @@ export default function AdminDashboard() {
         ) : (
           /* Tabs for Overview vs Management */
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-2">
+            <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="overview">Mentor & Group Overview</TabsTrigger>
               <TabsTrigger value="management">Form & Review Management</TabsTrigger>
+              <TabsTrigger value="evaluations">Review Evaluations</TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
@@ -519,6 +548,112 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+            </TabsContent>
+
+            {/* Evaluations Tab */}
+            <TabsContent value="evaluations" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Review Evaluations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {evaluationsLoading ? (
+                    <div className="text-center py-8">Loading evaluations...</div>
+                  ) : evaluations.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No evaluations submitted yet</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {evaluations.map((evaluation: any) => {
+                        const studentGrades = Array.isArray(evaluation.studentGrades)
+                          ? evaluation.studentGrades
+                          : [];
+
+                        return (
+                        <div key={evaluation.id} className="border rounded-lg p-4">
+                          <div className="mb-3">
+                            <h4 className="font-semibold">{evaluation.group?.groupId || "Group"}</h4>
+                            <p className="text-sm text-gray-600">
+                              Evaluator: {evaluation.mentor?.name || "Unknown"}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Review: {evaluation.reviewType?.replace("_", " ").toUpperCase() || "Unknown"}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Division: {evaluation.division || "-"}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Project Guide: {evaluation.projectGuide || "-"}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Project Title: {evaluation.projectTitle || "-"}
+                            </p>
+                            {evaluation.reviewType === "review_1" ? (
+                              <>
+                                <p className="text-sm text-gray-600">
+                                  Category of Project: {evaluation.projectCategory || "-"}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Project Type: {evaluation.projectType || "-"}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm text-gray-600">
+                                  Domain of Project: {evaluation.projectDomain || "-"}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Quality Grade: {evaluation.qualityGrade || "-"}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Nature of Project: {evaluation.projectNature || "-"}
+                                </p>
+                              </>
+                            )}
+                            <p className="text-sm text-gray-600">
+                              Completion Percentage: {evaluation.completionPercentage ?? 0}%
+                            </p>
+                          </div>
+                          {evaluation.remarks && (
+                            <p className="text-sm mt-2 text-gray-700">Remarks: {evaluation.remarks}</p>
+                          )}
+                          {evaluation.paperPublicationStatus && (
+                            <p className="text-sm text-gray-600">Paper Status: {evaluation.paperPublicationStatus}</p>
+                          )}
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold mb-1">Per-Student Criteria Breakdown:</p>
+                            <div className="space-y-2">
+                              {studentGrades.map((grade: any) => (
+                                <div key={grade.id} className="text-xs bg-gray-50 p-2 rounded">
+                                  <p className="font-medium mb-1">{grade.student?.name || "Unknown Student"}</p>
+                                  {evaluation.reviewType === "review_1" ? (
+                                    <>
+                                      <p>Progress (10): {grade.progressMarks ?? 0}</p>
+                                      <p>Contribution (10): {grade.contributionMarks ?? 0}</p>
+                                      <p>Publication (5): {grade.publicationMarks ?? 0}</p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p>Tech Usage (5): {grade.techUsageMarks ?? 0}</p>
+                                      <p>Innovativeness (5): {grade.innovationMarks ?? 0}</p>
+                                      <p>Presentation (5): {grade.presentationMarks ?? 0}</p>
+                                      <p>Project Activity (5): {grade.activityMarks ?? 0}</p>
+                                      <p>Synopsis (5): {grade.synopsisMarks ?? 0}</p>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Submitted: {evaluation.filledAt ? new Date(evaluation.filledAt).toLocaleDateString() : "-"}
+                          </p>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         )}
