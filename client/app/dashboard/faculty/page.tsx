@@ -115,8 +115,8 @@ export default function FacultyDashboard() {
         if (cachedAllocations && cachedTeamProgress) {
           setAllocations(cachedAllocations);
           setTeamProgress(cachedTeamProgress);
+          // Show cached data immediately, but continue fetching fresh data in background.
           setInitialLoading(false);
-          return;
         }
       }
       
@@ -368,22 +368,52 @@ export default function FacultyDashboard() {
     try {
       await mentorAllocationApi.accept(allocationId);
       showToast("Team accepted successfully!", "success");
-      await loadAllocations();
+      invalidateCache(CACHE_KEYS.ALLOCATIONS);
+      invalidateCache(CACHE_KEYS.TEAM_PROGRESS);
+      await loadAllocations(true);
     } catch (error: any) {
       showToast(error.message || "Failed to accept team", "error");
+      invalidateCache(CACHE_KEYS.ALLOCATIONS);
+      invalidateCache(CACHE_KEYS.TEAM_PROGRESS);
+      await loadAllocations(true);
     } finally {
       setLoading(false);
     }
   };
 
   const handleReject = async (allocationId: string) => {
+    const allocation = allocations.find((a) => a.id === allocationId);
+    if (!allocation) {
+      showToast("Allocation not found. Refreshing data...", "error");
+      invalidateCache(CACHE_KEYS.ALLOCATIONS);
+      invalidateCache(CACHE_KEYS.TEAM_PROGRESS);
+      await loadAllocations(true);
+      return;
+    }
+
+    if (allocation.status !== "pending") {
+      showToast(
+        `Cannot reject this team because status is "${allocation.status}". Refreshing data...`,
+        "error",
+      );
+      invalidateCache(CACHE_KEYS.ALLOCATIONS);
+      invalidateCache(CACHE_KEYS.TEAM_PROGRESS);
+      await loadAllocations(true);
+      return;
+    }
+
     setLoading(true);
     try {
       await mentorAllocationApi.reject(allocationId);
       showToast("Team rejected", "info");
-      await loadAllocations();
+      invalidateCache(CACHE_KEYS.ALLOCATIONS);
+      invalidateCache(CACHE_KEYS.TEAM_PROGRESS);
+      await loadAllocations(true);
     } catch (error: any) {
       showToast(error.message || "Failed to reject team", "error");
+      invalidateCache(CACHE_KEYS.ALLOCATIONS);
+      invalidateCache(CACHE_KEYS.TEAM_PROGRESS);
+      await loadAllocations(true);
     } finally {
       setLoading(false);
     }

@@ -87,8 +87,8 @@ export default function AdminDashboard() {
           setMentorOverview(cachedMentorOverview);
           setGroups(cachedGroups);
           setFacultyList(cachedFacultyList);
+          // Show cache immediately, but still fetch fresh data so rollout status is current.
           setInitialLoading(false);
-          return;
         }
       }
 
@@ -102,7 +102,9 @@ export default function AdminDashboard() {
       setCachedData(CACHE_KEYS.FACULTY_LIST, faculty, CACHE_TTL.LONG);
 
       if (form) {
-        setSelectedMentors(form.availableMentors.map((m) => m.id));
+        setSelectedMentors(form.availableMentors.map((m: any) => m.mentorId ?? m.id));
+      } else {
+        setSelectedMentors([]);
       }
 
       // Load groups by department with mentor details
@@ -225,7 +227,10 @@ export default function AdminDashboard() {
     try {
       await adminApi.allocateMentor({ groupId, mentorId });
       showToast("Mentor allocated successfully!", "success");
-      await loadData();
+      invalidateCache(CACHE_KEYS.MENTOR_OVERVIEW);
+      invalidateCache(CACHE_KEYS.GROUPS);
+      invalidateCache(CACHE_KEYS.FACULTY_LIST);
+      await loadData(true);
     } catch (error: any) {
       showToast(error.message || "Failed to allocate mentor", "error");
       throw error;
@@ -264,7 +269,10 @@ export default function AdminDashboard() {
     try {
       await mentorFormApi.create({ availableMentorIds: selectedMentors });
       showToast("Mentor Allocation Form rolled out successfully!", "success");
-      await loadData();
+      invalidateCache(CACHE_KEYS.MENTOR_OVERVIEW);
+      invalidateCache(CACHE_KEYS.GROUPS);
+      invalidateCache(CACHE_KEYS.FACULTY_LIST);
+      await loadData(true);
     } catch (error: any) {
       showToast(error.message || "Failed to roll out form", "error");
     } finally {
@@ -284,7 +292,10 @@ export default function AdminDashboard() {
         ? "Review 2" 
         : "Final Review";
       showToast(`${reviewName} rolled out successfully!`, "success");
-      await loadData();
+      invalidateCache(CACHE_KEYS.MENTOR_OVERVIEW);
+      invalidateCache(CACHE_KEYS.GROUPS);
+      invalidateCache(CACHE_KEYS.FACULTY_LIST);
+      await loadData(true);
     } catch (error: any) {
       showToast(error.message || "Failed to roll out review", "error");
     } finally {
@@ -430,6 +441,77 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
+            {/* Mentor Allocation Form Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCheck className="h-5 w-5" />
+                  Mentor Allocation Form
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 mb-4">
+                  Select faculty mentors and roll out the mentor allocation form for your department.
+                </p>
+
+                {activeForm?.isActive ? (
+                  <div className="border border-green-200 bg-green-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">Form Active</h4>
+                      <Badge variant="success">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Active
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-green-700">
+                      Mentor allocation form is currently active for {profile?.department}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                      {facultyList.length === 0 ? (
+                        <p className="text-sm text-gray-500">No faculty available in this department.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {facultyList.map((faculty) => (
+                            <label key={faculty.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedMentors.includes(faculty.id)}
+                                onChange={() => handleToggleMentor(faculty.id)}
+                                className="rounded border-gray-300"
+                              />
+                              <span className="text-sm">
+                                {faculty.name}
+                                {faculty.domains ? (
+                                  <span className="text-xs text-gray-500 ml-1">({faculty.domains})</span>
+                                ) : null}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-600">
+                        {selectedMentors.length} of {facultyList.length} mentors selected
+                      </span>
+                      <Button
+                        onClick={handleRollOutForm}
+                        disabled={loading || selectedMentors.length === 0 || facultyList.length === 0}
+                        className="gap-1"
+                      >
+                        <Play className="h-4 w-4" />
+                        Roll Out Form
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Review Rollout Card */}
         <Card>
           <CardHeader>
@@ -464,7 +546,7 @@ export default function AdminDashboard() {
                   <Button
                     size="sm"
                     onClick={() => handleRolloutReview("review_1")}
-                    disabled={loading}
+                    disabled={loading || !activeForm?.isActive}
                     className="w-full gap-1"
                   >
                     <Play className="h-4 w-4" />

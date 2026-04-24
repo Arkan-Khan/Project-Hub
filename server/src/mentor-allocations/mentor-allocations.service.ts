@@ -92,7 +92,15 @@ export class MentorAllocationsService {
     }
 
     if (allocation.status !== 'pending') {
-      throw new BadRequestException('Allocation is not pending');
+      const statusMessage =
+        allocation.status === 'accepted'
+          ? 'Cannot accept: allocation already accepted'
+          : allocation.status === 'rejected'
+            ? 'Cannot accept: allocation was already rejected'
+            : allocation.status === 'waiting'
+              ? 'Allocation is waiting and not yet pending for your decision'
+              : `Allocation cannot be accepted in current status: ${allocation.status}`;
+      throw new BadRequestException(statusMessage);
     }
 
     // Update in a transaction - accept this one, reject all others for the same group
@@ -107,6 +115,7 @@ export class MentorAllocationsService {
       await tx.mentorAllocation.updateMany({
         where: {
           groupId: allocation.groupId,
+          formId: allocation.formId,
           id: { not: allocationId },
         },
         data: { status: 'rejected' },
@@ -139,7 +148,15 @@ export class MentorAllocationsService {
     }
 
     if (allocation.status !== 'pending') {
-      throw new BadRequestException('Allocation is not pending');
+      const statusMessage =
+        allocation.status === 'accepted'
+          ? 'Cannot reject: allocation already accepted'
+          : allocation.status === 'rejected'
+            ? 'Allocation was already rejected'
+            : allocation.status === 'waiting'
+              ? 'Allocation is waiting and not yet pending for your decision'
+              : `Allocation cannot be rejected in current status: ${allocation.status}`;
+      throw new BadRequestException(statusMessage);
     }
 
     // Reject and escalate to next priority in a transaction
@@ -153,6 +170,7 @@ export class MentorAllocationsService {
       const nextWaiting = await tx.mentorAllocation.findFirst({
         where: {
           groupId: allocation.groupId,
+          formId: allocation.formId,
           status: 'waiting',
         },
         orderBy: { preferenceRank: 'asc' },
